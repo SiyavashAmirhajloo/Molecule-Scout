@@ -195,3 +195,7 @@ prompts/*.md
 # Windows
 ehthumbs.db
 Thumbs.db
+
+
+.claude/
+.agents/
