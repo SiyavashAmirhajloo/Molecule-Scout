@@ -1,0 +1,197 @@
+# Environment & Configuration
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+config.yaml
+config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv/
+venv/
+env/
+.venv
+env.bak/
+venv.bak/
+.pyre_cache/
+.pytype/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Node/Frontend
+node_modules/
+npm-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+.next/
+out/
+dist/
+build/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.vim/
+.emacs.d/
+*.vscode/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+pytest.ini
+coverage.xml
+.nyc_output/
+
+# Celery & Redis
+celerybeat-schedule
+dump.rdb
+*.log
+
+# Database & Storage
+*.db
+*.sqlite
+*.sqlite3
+*.postgres
+*.pgpass
+pgpass
+.pgpass
+data/
+databases/
+*.dump
+
+# ML Models & Data
+models/
+checkpoints/
+trained_models/
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+weights/
+pretrained/
+cache/
+.cache/
+
+# Project-specific
+uploads/
+generated/
+results/
+outputs/
+tmp/
+temp/
+.tmp/
+scratch/
+experiments/
+logs/
+docking_results/
+poses/
+ligands/
+receptors/
+pdfs/
+extracted_structures/
+literature_imports/
+
+# Docker
+docker-compose.override.yml
+.dockerignore.bak
+
+# Git
+.gitkeep
+
+# OS
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Sensitive files
+secrets/
+.secrets/
+private/
+credentials/
+auth/
+api_keys.txt
+tokens.txt
+*.secret
+*.cred
+
+# Documentation (project design/roadmap files - internal use only)
+CLAUDE.md
+docs/tech-stack.md
+docs/architecture.md
+docs/requirements.md
+docs/roadmap.md
+prompts/
+prompts/*.md
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+*.swp
+*.swo
+
+# IDE-specific
+.idea/
+*.iml
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# macOS
+.AppleDouble
+.LSOverride
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+ehthumbs.db
+Thumbs.db
