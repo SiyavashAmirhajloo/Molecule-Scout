@@ -96,8 +96,8 @@ data/
 databases/
 *.dump
 
-# ML Models & Data
-models/
+# ML Models & Data (top-level dirs only — backend/app/models/ holds SQLAlchemy models)
+/models/
 checkpoints/
 trained_models/
 *.pth
