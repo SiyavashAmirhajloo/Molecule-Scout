@@ -5,15 +5,15 @@ import redis.asyncio as redis
 from fastapi import FastAPI
 from sqlalchemy import text
 
-from app.api import jobs
+from app.api import jobs, molecules
 from app.config import settings
-from app.db import engine, ensure_pgvector
+from app.db import engine, upgrade_schema
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
-        await ensure_pgvector()
+        await upgrade_schema()
     except Exception:
         pass
     yield
@@ -22,6 +22,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(title="Molecule Scout", lifespan=lifespan)
     app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+    app.include_router(molecules.router, prefix="/molecules", tags=["molecules"])
 
     @app.get("/health")
     async def health() -> dict:

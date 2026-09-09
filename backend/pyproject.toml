@@ -6,4 +6,9 @@ line-length = 100
 
 [tool.ruff.lint]
 # BLE001/S110: health/lifespan probes map any backend failure to a status string
-ignore = ["BLE001", "S110"]
+# B008: FastAPI Depends() in defaults is the framework's documented pattern
+ignore = ["BLE001", "S110", "B008"]
+
+[tool.ruff.lint.isort]
+# backend/alembic/ (migrations dir) shadows the installed package name
+known-third-party = ["alembic"]

@@ -9,9 +9,9 @@ a ranked, explained shortlist. Built as a real product (FastAPI + Celery + pgvec
 + Next.js + LangGraph), not a notebook. **Generated molecules are not validated drug
 candidates** — output is a triage aid requiring human/wet-lab verification.
 
-## Status — V0 Foundation ✓
+## Status — V1 Knowledge Base ✓
 
-V0 proves the deployable skeleton everything else builds on. No chemistry yet.
+V0 proved the deployable skeleton. V1 adds the queryable molecule store.
 
 | Check | Status |
 |---|---|
@@ -23,8 +23,31 @@ V0 proves the deployable skeleton everything else builds on. No chemistry yet.
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
 | Frontend shell renders and fetches `/health` | ✓ |
 
-Next: **V1 — Molecule Knowledge Base** (PubChem/ChEMBL slice, RDKit validation,
-Morgan/ECFP fingerprints, pgvector similarity search).
+Next: **V2 — Project Intake & Retrieval**.
+
+## Knowledge Base (V1) ✓
+
+Local store of **3,417 approved drugs** ingested 2026-09-09 from the ChEMBL REST
+API (`molecule.json?max_phase=4`, 4,225 records total; 808 had no structure,
+0 failed RDKit parsing, 0 duplicate canonical SMILES). Chosen because approved
+drugs are a defensible, citable, target-agnostic retrieval baseline — the
+"similar to known drug X" story in later reports is grounded in something real.
+
+- RDKit parses/validates every molecule; `MoleculeEmbedder` Protocol
+  (`backend/app/chem/embeddings.py`) with Morgan/ECFP4 (radius 2, 2048 bits)
+  default, swappable for a learned embedding later
+- `known_molecules` table via Alembic (`backend/alembic/versions/`, upgraded at
+  API startup): canonical SMILES (unique), ChEMBL ID, name, `vector(2048)`
+  fingerprint
+- `GET /molecules/similar?smiles=...&limit=10` — exact Tanimoto over stored
+  fingerprints (brute-force over ~3.4k rows; pgvector ordering if it grows)
+
+```bash
+docker compose up --build
+docker compose exec api python scripts/ingest_chembl.py   # one-shot seed
+curl "localhost:8000/molecules/similar?smiles=CC(%3DO)Oc1ccccc1C(%3DO)O&limit=3"
+# ASPIRIN 1.0, BENORILATE 0.51, SALICYLIC ACID 0.45
+```
 
 ## Quick Start
 
@@ -60,7 +83,9 @@ backend/
     api/jobs.py             # POST /jobs/test, GET /jobs/{id}
     workers/celery_app.py   # Celery (Redis broker/backend)
     workers/tasks.py        # add(a, b) — proves the background-job loop
-  tests/                    # test_health.py, test_jobs.py (eager mode)
+  tests/                    # test_health.py, test_jobs.py (eager mode), test_chem.py
+  alembic/                  # env.py + versions/ (001 known_molecules), upgraded at startup
+  scripts/ingest_chembl.py  # one-shot ChEMBL max_phase=4 seed
 frontend/
   app/page.tsx              # health shell (fetches NEXT_PUBLIC_API_URL/health)
   app/layout.tsx, globals.css, tailwind.config.js, next.config.mjs
@@ -74,7 +99,7 @@ prompts/                    # version-scoped build prompts (V1–V10)
 | Version | Goal | Key Deliverable |
 |---|---|---|
 | **V0** | Foundation | Compose stack + health + job queue + shell + CI |
-| V1 | Molecule Knowledge Base | PubChem/ChEMBL slice, RDKit, fingerprints, similarity search |
+| **V1** | Molecule Knowledge Base | 3,417 ChEMBL approved drugs, RDKit, fingerprints, similarity search |
 | V2 | Project Intake & Retrieval | Retrieval Agent with citations |
 | V3 | Property Filtering | QED/SA/Lipinski/PAINS |
 | V4 | Baseline Generation | Diffusion backbone, background jobs, MOSES/GuacaMol metrics |
