@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 
 import redis.asyncio as redis
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from sqlalchemy import text
 
 from app.api import jobs, molecules
@@ -21,8 +23,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Molecule Scout", lifespan=lifespan)
+    app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"])
     app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
     app.include_router(molecules.router, prefix="/molecules", tags=["molecules"])
+
+    @app.get("/", include_in_schema=False)
+    async def root():
+        return RedirectResponse("/docs")
 
     @app.get("/health")
     async def health() -> dict:
