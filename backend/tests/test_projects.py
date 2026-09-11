@@ -1,22 +1,9 @@
-import pytest
 from fastapi.testclient import TestClient
-
-from app.db import upgrade_schema
-from app.main import create_app
 
 ASPIRIN = "CC(=O)Oc1ccccc1C(=O)O"
 
 
-@pytest.fixture(scope="module")
-def client():
-    import asyncio
-
-    asyncio.run(upgrade_schema())
-    with TestClient(create_app()) as client:
-        yield client
-
-
-def test_create_by_smiles_self_hit(client):
+def test_create_by_smiles_self_hit(client: TestClient):
     r = client.post("/projects", json={"seed_smiles": ASPIRIN, "limit": 3})
     assert r.status_code == 200, r.text
     body = r.json()
@@ -29,7 +16,7 @@ def test_create_by_smiles_self_hit(client):
     assert len(body["results"]) == 3
 
 
-def test_create_by_name_resolves(client):
+def test_create_by_name_resolves(client: TestClient):
     r = client.post("/projects", json={"seed_name": "aspirin"})
     assert r.status_code == 200, r.text
     body = r.json()
@@ -38,27 +25,27 @@ def test_create_by_name_resolves(client):
     assert body["results"][0]["similarity"] == 1.0
 
 
-def test_unknown_name_422(client):
+def test_unknown_name_422(client: TestClient):
     r = client.post("/projects", json={"seed_name": "not-a-real-drug-xyz"})
     assert r.status_code == 422
 
 
-def test_bad_smiles_422(client):
+def test_bad_smiles_422(client: TestClient):
     r = client.post("/projects", json={"seed_smiles": "not-a-molecule"})
     assert r.status_code == 422
 
 
-def test_empty_body_422(client):
+def test_empty_body_422(client: TestClient):
     r = client.post("/projects", json={})
     assert r.status_code == 422
 
 
-def test_both_seeds_422(client):
+def test_both_seeds_422(client: TestClient):
     r = client.post("/projects", json={"seed_smiles": ASPIRIN, "seed_name": "ASPIRIN"})
     assert r.status_code == 422
 
 
-def test_target_only_honest_empty(client):
+def test_target_only_honest_empty(client: TestClient):
     r = client.post("/projects", json={"pdb_id": "1ABC"})
     assert r.status_code == 200, r.text
     body = r.json()
@@ -66,7 +53,7 @@ def test_target_only_honest_empty(client):
     assert "1ABC" in body["message"]
 
 
-def test_project_ids_increment(client):
+def test_project_ids_increment(client: TestClient):
     r1 = client.post("/projects", json={"seed_smiles": ASPIRIN, "limit": 1})
     r2 = client.post("/projects", json={"seed_smiles": ASPIRIN, "limit": 1})
     assert r1.status_code == 200 and r2.status_code == 200
