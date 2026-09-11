@@ -9,9 +9,10 @@ a ranked, explained shortlist. Built as a real product (FastAPI + Celery + pgvec
 + Next.js + LangGraph), not a notebook. **Generated molecules are not validated drug
 candidates** — output is a triage aid requiring human/wet-lab verification.
 
-## Status — V1 Knowledge Base ✓
+## Status — V2 Project Intake & Retrieval ✓
 
-V0 proved the deployable skeleton. V1 adds the queryable molecule store.
+V0 proved the deployable skeleton, V1 the molecule store. V2 lets a user start a
+project (PDB ID and/or seed SMILES/name) and get citation-backed retrieval results.
 
 | Check | Status |
 |---|---|
@@ -23,7 +24,7 @@ V0 proved the deployable skeleton. V1 adds the queryable molecule store.
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
 | Frontend shell renders and fetches `/health` | ✓ |
 
-Next: **V2 — Project Intake & Retrieval**.
+Next: **V3 — Property Filtering** (QED, SA score, Lipinski, PAINS).
 
 ## Knowledge Base (V1) ✓
 
@@ -47,6 +48,29 @@ docker compose up --build
 docker compose exec api python scripts/ingest_chembl.py   # one-shot seed
 curl "localhost:8000/molecules/similar?smiles=CC(%3DO)Oc1ccccc1C(%3DO)O&limit=3"
 # ASPIRIN 1.0, BENORILATE 0.51, SALICYLIC ACID 0.45
+```
+
+## Project Intake & Retrieval (V2) ✓
+
+`POST /projects` with `{pdb_id?, seed_smiles?, seed_name?}` (at least one required;
+seed by SMILES or by local drug name, not both). Retrieval runs inline against the
+V1 store via `backend/app/agents/retrieval.py` (shared with `GET /molecules/similar`)
+and every hit carries `citation: {database: "ChEMBL", entry_id, url}`.
+
+- Seed by name resolves locally against ingested `pref_name`s; unknown name → 422
+  (no external lookup — corpus boundaries stay honest)
+- Target-only (PDB ID, no seed) returns `results: []` with an honest message —
+  never fabricated retrieval (V5's generation fallback depends on this distinction)
+- `projects` table via Alembic `002` (pdb_id, canonical seed_smiles, seed_source)
+
+**Limitation:** `pdb_id` is a stored reference string only — no structure fetch,
+no pocket handling. Full protein structure handling arrives with docking (V6).
+
+```bash
+curl -X POST localhost:8000/projects -H 'Content-Type: application/json' \
+  -d '{"seed_name":"ASPIRIN","limit":3}'
+# seed_resolved: CC(=O)Oc1ccccc1C(=O)O; ASPIRIN 1.0 + BENORILATE + SALICYLIC ACID,
+# each with a working https://www.ebi.ac.uk/chembl/explore/compound/CHEMBL… link
 ```
 
 ## Quick Start

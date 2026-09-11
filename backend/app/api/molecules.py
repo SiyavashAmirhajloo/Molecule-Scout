@@ -2,12 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.chem.embeddings import get_embedder, parse_smiles
+from app.agents.retrieval import retrieve
+from app.chem.embeddings import parse_smiles
 from app.db import get_session
-from app.models.molecule import KnownMolecule
 
 router = APIRouter()
 
@@ -28,10 +27,7 @@ async def similar(
     mol = parse_smiles(smiles)
     if mol is None:
         raise HTTPException(422, "Invalid SMILES")
-    rows = (await session.execute(select(KnownMolecule))).scalars().all()
-    scores = get_embedder().similarities(mol, [m.fingerprint for m in rows])
-    ranked = sorted(zip(rows, scores), key=lambda pair: pair[1], reverse=True)[:limit]
-    # ponytail: brute-force scan over ~2k rows, pgvector ordering if corpus grows
+    ranked = await retrieve(session, mol, limit)
     return [
         SimilarHit(
             canonical_smiles=m.canonical_smiles,
