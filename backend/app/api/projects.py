@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.properties import PropertyBreakdown, compute_properties
 from app.agents.retrieval import citation, resolve_seed, retrieve
+from app.chem.embeddings import parse_smiles
 from app.db import get_session
 from app.models.project import Project
 
@@ -24,6 +26,7 @@ class RetrievalHit(BaseModel):
     name: str | None
     similarity: float
     citation: dict
+    properties: PropertyBreakdown
 
 
 class ProjectOut(BaseModel):
@@ -67,17 +70,22 @@ async def create_project(
             "add a seed molecule to retrieve similar known compounds.",
         )
     hits = await retrieve(session, resolved[0], body.limit)
-    return ProjectResponse(
-        project=ProjectOut.model_validate(project, from_attributes=True),
-        seed_resolved=resolved[1],
-        results=[
+    results = []
+    for m, s in hits:
+        mol = parse_smiles(m.canonical_smiles)
+        assert mol is not None  # stored SMILES were RDKit-validated at ingest
+        results.append(
             RetrievalHit(
                 canonical_smiles=m.canonical_smiles,
                 chembl_id=m.chembl_id,
                 name=m.name,
                 similarity=round(s, 4),
                 citation=citation(m),
+                properties=compute_properties(mol),
             )
-            for m, s in hits
-        ],
+        )
+    return ProjectResponse(
+        project=ProjectOut.model_validate(project, from_attributes=True),
+        seed_resolved=resolved[1],
+        results=results,
     )

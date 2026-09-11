@@ -14,6 +14,10 @@ def test_create_by_smiles_self_hit(client: TestClient):
     assert top["citation"]["database"] == "ChEMBL"
     assert top["citation"]["url"].endswith(top["citation"]["entry_id"])
     assert len(body["results"]) == 3
+    props = top["properties"]
+    assert set(props) == {"qed", "sa_score", "lipinski", "pains"}
+    assert props["lipinski"]["passes"] is True
+    assert props["pains"]["passes"] is True
 
 
 def test_create_by_name_resolves(client: TestClient):

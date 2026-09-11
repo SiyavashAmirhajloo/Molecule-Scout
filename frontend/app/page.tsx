@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import MoleculeTable, { MoleculeRow } from "./components/MoleculeTable";
 
 type Health = { db: string; redis: string };
-type Hit = {
-  canonical_smiles: string;
+type Hit = MoleculeRow & {
   chembl_id: string | null;
-  name: string | null;
-  similarity: number;
   citation: { database: string; entry_id: string | null; url: string };
 };
 type ProjectResponse = {
@@ -131,37 +129,9 @@ export default function Home() {
               </p>
             )}
             {response.results.length > 0 && (
-              <table className="mt-3 w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800 text-zinc-400">
-                    <th className="py-2 pr-4">SMILES</th>
-                    <th className="py-2 pr-4">Name</th>
-                    <th className="py-2 pr-4">Similarity</th>
-                    <th className="py-2">Source</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {response.results.map((hit) => (
-                    <tr key={hit.chembl_id ?? hit.canonical_smiles} className="border-b border-zinc-900">
-                      <td className="max-w-xs truncate py-2 pr-4 font-mono text-xs">
-                        {hit.canonical_smiles}
-                      </td>
-                      <td className="py-2 pr-4">{hit.name ?? "—"}</td>
-                      <td className="py-2 pr-4 font-mono">{hit.similarity.toFixed(4)}</td>
-                      <td className="py-2">
-                        <a
-                          href={hit.citation.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-emerald-400 hover:underline"
-                        >
-                          {hit.citation.entry_id}
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="mt-3">
+                <MoleculeTable rows={response.results} />
+              </div>
             )}
           </section>
         )}
