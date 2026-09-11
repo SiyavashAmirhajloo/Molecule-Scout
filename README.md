@@ -9,10 +9,11 @@ a ranked, explained shortlist. Built as a real product (FastAPI + Celery + pgvec
 + Next.js + LangGraph), not a notebook. **Generated molecules are not validated drug
 candidates** — output is a triage aid requiring human/wet-lab verification.
 
-## Status — V2 Project Intake & Retrieval ✓
+## Status — V3 Property Filtering ✓
 
-V0 proved the deployable skeleton, V1 the molecule store. V2 lets a user start a
-project (PDB ID and/or seed SMILES/name) and get citation-backed retrieval results.
+V0–V2 proved the skeleton, store, and intake. V3 adds the RDKit property pipeline
+(QED, SA, Lipinski, PAINS) applied to retrieval results, with a sortable/filterable
+comparison table.
 
 | Check | Status |
 |---|---|
@@ -24,7 +25,7 @@ project (PDB ID and/or seed SMILES/name) and get citation-backed retrieval resul
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
 | Frontend shell renders and fetches `/health` | ✓ |
 
-Next: **V3 — Property Filtering** (QED, SA score, Lipinski, PAINS).
+Next: **V4 — Baseline Generation** (diffusion backbone, background jobs, MOSES/GuacaMol metrics).
 
 ## Knowledge Base (V1) ✓
 
@@ -72,6 +73,26 @@ curl -X POST localhost:8000/projects -H 'Content-Type: application/json' \
 # seed_resolved: CC(=O)Oc1ccccc1C(=O)O; ASPIRIN 1.0 + BENORILATE + SALICYLIC ACID,
 # each with a working https://www.ebi.ac.uk/chembl/explore/compound/CHEMBL… link
 ```
+
+## Property Filtering (V3) ✓
+
+Every retrieval hit carries `properties` computed live by
+`backend/app/agents/properties.py` (pure RDKit function — reused as-is for
+generated candidates in V4; no migration, nothing persisted):
+
+- **QED** (`rdkit.Chem.QED.qed`) — 0–1 drug-likeness; aspirin 0.550
+- **SA score** (`rdkit.Contrib.SA_Score`, Ertl, rdkit 2026.03.6) — 1 (easy) to 10;
+  aspirin 1.58
+- **Lipinski** (MW ≤ 500, logP ≤ 5, HBD ≤ 5, HBA ≤ 10) — each component shown,
+  `passes` = ≤1 violation
+- **PAINS** (480-pattern catalog) — `passes` = zero matches
+
+No server-side thresholds — the API returns the full breakdown and the UI
+sorts/filters client-side. Cutoffs arrive in V6 as a pre-docking gate.
+`frontend/app/components/MoleculeTable.tsx` is the shared comparison table:
+sortable headers (similarity, QED, SA, MW, logP) + filters (min QED, max SA,
+Lipinski-only, PAINS-free). Generic rows (optional `similarity`/`citation`) so
+V4's generation view reuses it unchanged.
 
 ## Quick Start
 
