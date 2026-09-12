@@ -14,6 +14,20 @@ type ProjectResponse = {
   results: Hit[];
   message: string | null;
 };
+type GeneratedCandidate = { smiles: string; properties: MoleculeRow["properties"] };
+type GenerationResult = {
+  candidates: GeneratedCandidate[];
+  metrics: {
+    n_requested: number;
+    n_valid: number;
+    validity: number;
+    uniqueness: number;
+    novelty: number;
+    diversity: number;
+  };
+  checkpoint: string;
+  seed: number | null;
+};
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -25,6 +39,11 @@ export default function Home() {
   const [response, setResponse] = useState<ProjectResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [genCount, setGenCount] = useState("20");
+  const [genJobId, setGenJobId] = useState<string | null>(null);
+  const [genStatus, setGenStatus] = useState<string | null>(null);
+  const [genResult, setGenResult] = useState<GenerationResult | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${API}/health`)
@@ -135,6 +154,84 @@ export default function Home() {
             )}
           </section>
         )}
+
+        <section className="mt-10 border-t border-zinc-800 pt-6">
+          <h2 className="text-lg font-medium">Generate candidates</h2>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setGenError(null);
+              setGenResult(null);
+              setGenJobId(null);
+              try {
+                const r = await fetch(`${API}/jobs/generate`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ n: Number(genCount) || 20 }),
+                });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                const { id } = await r.json();
+                setGenJobId(id);
+                setGenStatus("queued");
+                const poll = setInterval(async () => {
+                  const s = await fetch(`${API}/jobs/${id}`).then((x) => x.json());
+                  setGenStatus(s.status);
+                  if (s.status === "success") {
+                    clearInterval(poll);
+                    setGenResult(s.result);
+                  } else if (s.status === "failure") {
+                    clearInterval(poll);
+                    setGenError(s.error ?? "Generation failed");
+                  }
+                }, 2000);
+              } catch (err) {
+                setGenError(err instanceof Error ? err.message : "Request failed");
+              }
+            }}
+            className="mt-3 flex items-end gap-3"
+          >
+            <label className="block text-sm">
+              <span className="text-zinc-400">Count</span>
+              <input
+                value={genCount}
+                onChange={(e) => setGenCount(e.target.value)}
+                className="mt-1 w-24 rounded bg-zinc-800 px-2 py-1.5 font-mono"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium"
+            >
+              Generate
+            </button>
+            {genStatus && genJobId && (
+              <span className="pb-2 font-mono text-sm text-zinc-400">
+                {genJobId.slice(0, 8)}… · {genStatus}
+              </span>
+            )}
+          </form>
+          {genError && (
+            <p className="mt-4 rounded bg-red-950 p-3 text-sm text-red-200">{genError}</p>
+          )}
+          {genResult && (
+            <div className="mt-4">
+              <p className="font-mono text-sm text-zinc-400">
+                validity {genResult.metrics.validity} · uniqueness{" "}
+                {genResult.metrics.uniqueness} · novelty {genResult.metrics.novelty} ·
+                diversity {genResult.metrics.diversity} · {genResult.checkpoint}
+              </p>
+              <div className="mt-3">
+                <MoleculeTable
+                  rows={genResult.candidates.map((c) => ({
+                    canonical_smiles: c.smiles,
+                    name: null,
+                    properties: c.properties,
+                  }))}
+                />
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

@@ -2,7 +2,9 @@ FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-RUN useradd -m app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libxrender1 libxext6 libexpat1 && \
+    rm -rf /var/lib/apt/lists/* && useradd -m app
 WORKDIR /code
 
 COPY requirements.txt .
