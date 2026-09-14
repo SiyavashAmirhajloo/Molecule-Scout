@@ -1,0 +1,7 @@
+{
+  "model": "GraphDITMolecularGenerator",
+  "dataset": "QM9 (liuganghuggingface/QM9)",
+  "n_train": 133885,
+  "epochs": 100,
+  "checkpoint_sha": "21ff440fa37f"
+}

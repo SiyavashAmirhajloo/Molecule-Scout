@@ -120,6 +120,12 @@ curl -X POST localhost:8000/jobs/generate -H 'Content-Type: application/json' \
 # poll GET /jobs/<id> → candidates + metrics + checkpoint
 ```
 
+**Baseline numbers** (checkpoint `graphdit-qm9/21ff440fa37f`, Graph-DiT 100 epochs
+on QM9/133,885, Colab T4; sampled CPU, n=20, seed 42, ~63s): validity **0.75**,
+uniqueness **1.0**, novelty **1.0** (vs 3,417-drug corpus), diversity **0.935**.
+V5's comparison point. Caveat: QM9 caps at 9 heavy atoms, so candidates are small
+fragments (e.g. `OCC(O)N1CCC1`, QED 0.487) — expected, not a defect.
+
 ## Quick Start
 
 Prerequisites: Docker + Docker Compose.
