@@ -9,11 +9,12 @@ a ranked, explained shortlist. Built as a real product (FastAPI + Celery + pgvec
 + Next.js + LangGraph), not a notebook. **Generated molecules are not validated drug
 candidates** — output is a triage aid requiring human/wet-lab verification.
 
-## Status — V3 Property Filtering ✓
+## Status — V4 Baseline Generation ✓
 
-V0–V2 proved the skeleton, store, and intake. V3 adds the RDKit property pipeline
-(QED, SA, Lipinski, PAINS) applied to retrieval results, with a sortable/filterable
-comparison table.
+V0–V3 proved the skeleton, store, intake, and filters. V4 adds real diffusion
+generation: Graph-DiT (QM9) behind a swappable `GeneratorBackend` seam, as a Celery
+job with polling, MW/logP conditioning, V3 properties on every candidate, and
+validity/uniqueness/novelty/diversity baselines for V5 to compare against.
 
 | Check | Status |
 |---|---|
@@ -25,7 +26,7 @@ comparison table.
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
 | Frontend shell renders and fetches `/health` | ✓ |
 
-Next: **V4 — Baseline Generation** (diffusion backbone, background jobs, MOSES/GuacaMol metrics).
+Next: **V5 — Retrieval-Augmented Generation** (RetMol-style conditioning, ablation vs V4 baselines).
 
 ## Knowledge Base (V1) ✓
 
@@ -93,6 +94,37 @@ sorts/filters client-side. Cutoffs arrive in V6 as a pre-docking gate.
 sortable headers (similarity, QED, SA, MW, logP) + filters (min QED, max SA,
 Lipinski-only, PAINS-free). Generic rows (optional `similarity`/`citation`) so
 V4's generation view reuses it unchanged.
+
+## Baseline Generation (V4) ✓
+
+Real 2D graph diffusion, not a placeholder. **Backbone: Graph-DiT**
+(`torch-molecule`, NeurIPS 2024) trained on **QM9** — chosen over EDM-3D because
+CPU sampling is feasible, MW/logP conditioning is native, and 2D fits V5's
+conditioning paths; see `docs/tech-stack.md` for the full tradeoff.
+
+- Train on free Colab T4 via `notebooks/train_graphdit_qm9.py`, export `.pt`;
+  worker runs **CPU-only torch** + `torch-molecule`, loads checkpoint from
+  `models/graphdit-qm9.pt` (`GENERATOR_CHECKPOINT` overrides, gitignored)
+- `GeneratorBackend` Protocol (`backend/app/generation/base.py`) keeps diffusion
+  swappable; `GraphDiTBackend` is the real provider (no fragment fallback shipped)
+- `POST /jobs/generate {n, mw_min/max, logp_min/max, seed}` → Celery task →
+  `GET /jobs/{id}` poll (queued/running/done/failed); every candidate gets V3
+  `properties`; each run records `{checkpoint: "graphdit-qm9/<sha>", seed}`
+- Metrics computed directly (no MOSES dep): validity, uniqueness, novelty (vs
+  `known_molecules`), diversity (1 − mean pairwise Tanimoto)
+- Frontend "Generate candidates" section reuses `MoleculeTable` unchanged + metrics line
+
+```bash
+curl -X POST localhost:8000/jobs/generate -H 'Content-Type: application/json' \
+  -d '{"n":20,"seed":42}'
+# poll GET /jobs/<id> → candidates + metrics + checkpoint
+```
+
+**Baseline numbers** (checkpoint `graphdit-qm9/21ff440fa37f`, Graph-DiT 100 epochs
+on QM9/133,885, Colab T4; sampled CPU, n=20, seed 42, ~63s): validity **0.75**,
+uniqueness **1.0**, novelty **1.0** (vs 3,417-drug corpus), diversity **0.935**.
+V5's comparison point. Caveat: QM9 caps at 9 heavy atoms, so candidates are small
+fragments (e.g. `OCC(O)N1CCC1`, QED 0.487) — expected, not a defect.
 
 ## Quick Start
 

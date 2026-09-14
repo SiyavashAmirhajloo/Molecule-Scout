@@ -68,13 +68,15 @@ Build an abstraction layer here too — don't hardcode one diffusion
 architecture, since this is the piece most likely to need swapping
 as better open implementations appear.
 
-- **Primary backbone**: an equivariant diffusion model for molecules
-  operating over 3D atomic coordinates and atom types (EDM-style —
-  e.g. the open-source "e3_diffusion_for_molecules" implementation),
-  OR a 2D molecular graph diffusion model (DiGress-style) if 3D
-  conditioning proves too heavy for the target compute budget — pick
-  one as the v1 default and document the tradeoff, don't half-build
-  both
+- **Primary backbone (chosen V4): Graph-DiT via `torch-molecule`** (2D molecular
+  graph diffusion transformer, NeurIPS 2024, sklearn-style `fit`/`generate`).
+  Chosen over EDM-style 3D: CPU sampling is feasible on QM9-scale molecules,
+  multi-conditional generation (MW/logP) is native via its condition encoder +
+  classifier-free guidance, and 2D fits both V5 conditioning paths
+  (cross-attention or guidance vectors). Chosen over the original DiGress repo:
+  its published checkpoints are dead links while `torch-molecule` (which also
+  bundles DiGress/GDSS) is actively maintained with HF checkpoint support.
+  Train on free Colab T4, sample on local CPU-only torch — no local GPU needed.
 - **Retrieval-augmented conditioning**: implement the RetMol-style
   mechanism described in `docs/architecture.md` — retrieved molecule
   embeddings are projected into the model's conditioning space and
