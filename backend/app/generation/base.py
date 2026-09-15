@@ -10,4 +10,6 @@ class GeneratorBackend(Protocol):
         mw_range: tuple[float, float] | None = None,
         logp_range: tuple[float, float] | None = None,
         seed: int | None = None,
+        seed_smiles: str | None = None,
+        noise_steps: int = 100,
     ) -> list[str]: ...

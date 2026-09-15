@@ -26,6 +26,8 @@ class GenerateRequest(BaseModel):
     logp_min: float | None = None
     logp_max: float | None = None
     seed: int | None = None
+    seed_smiles: str | None = None
+    noise_steps: int = Field(default=100, ge=10, le=500)
 
 
 @router.post("/generate")
@@ -35,7 +37,14 @@ def enqueue_generate(body: GenerateRequest) -> dict:
     for name, r in (("mw_range", mw_range), ("logp_range", logp_range)):
         if r and r[0] is not None and r[1] is not None and r[0] > r[1]:
             raise HTTPException(422, f"{name}: min exceeds max")
-    result = tasks.generate_molecules.delay(body.n, mw_range, logp_range, body.seed)
+    if body.seed_smiles:
+        from app.chem.embeddings import parse_smiles
+
+        if parse_smiles(body.seed_smiles) is None:
+            raise HTTPException(422, "Invalid seed_smiles")
+    result = tasks.generate_molecules.delay(
+        body.n, mw_range, logp_range, body.seed, body.seed_smiles, body.noise_steps
+    )
     return {"id": result.id, "status": "queued"}
 
 

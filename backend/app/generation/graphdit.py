@@ -35,6 +35,8 @@ class GraphDiTBackend:
         mw_range: tuple[float, float] | None = None,
         logp_range: tuple[float, float] | None = None,
         seed: int | None = None,
+        seed_smiles: str | None = None,
+        noise_steps: int = 100,
     ) -> list[str]:
         import random
 
@@ -45,7 +47,12 @@ class GraphDiTBackend:
             random.seed(seed)
             np.random.seed(seed)
             torch.manual_seed(seed)
-        raw = self._model.generate(batch_size=n)
+        if seed_smiles:
+            from app.generation.conditioned import generate_seeded
+
+            raw = generate_seeded(self._model, seed_smiles, n, noise_steps, seed)
+        else:
+            raw = self._model.generate(batch_size=n)
         smiles = [s for s in raw if s]
         if mw_range or logp_range:
             from rdkit import Chem
