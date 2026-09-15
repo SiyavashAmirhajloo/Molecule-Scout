@@ -9,12 +9,11 @@ a ranked, explained shortlist. Built as a real product (FastAPI + Celery + pgvec
 + Next.js + LangGraph), not a notebook. **Generated molecules are not validated drug
 candidates** — output is a triage aid requiring human/wet-lab verification.
 
-## Status — V4 Baseline Generation ✓
+## Status — V5 Retrieval-Augmented Generation ✓
 
-V0–V3 proved the skeleton, store, intake, and filters. V4 adds real diffusion
-generation: Graph-DiT (QM9) behind a swappable `GeneratorBackend` seam, as a Celery
-job with polling, MW/logP conditioning, V3 properties on every candidate, and
-validity/uniqueness/novelty/diversity baselines for V5 to compare against.
+V4 proved diffusion generation with baselines. V5 conditions it on retrieval:
+seed-graph init (denoise from the top retrieved molecule's noised graph) via
+`POST /projects/{id}/generate`, with explicit fallback below 0.3 Tanimoto.
 
 | Check | Status |
 |---|---|
@@ -26,7 +25,7 @@ validity/uniqueness/novelty/diversity baselines for V5 to compare against.
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
 | Frontend shell renders and fetches `/health` | ✓ |
 
-Next: **V5 — Retrieval-Augmented Generation** (RetMol-style conditioning, ablation vs V4 baselines).
+Next: **V6 — Docking & Composite Ranking** (AutoDock Vina, disclosed rank formula, 3D pose viewer).
 
 ## Knowledge Base (V1) ✓
 
@@ -123,8 +122,39 @@ curl -X POST localhost:8000/jobs/generate -H 'Content-Type: application/json' \
 **Baseline numbers** (checkpoint `graphdit-qm9/21ff440fa37f`, Graph-DiT 100 epochs
 on QM9/133,885, Colab T4; sampled CPU, n=20, seed 42, ~63s): validity **0.75**,
 uniqueness **1.0**, novelty **1.0** (vs 3,417-drug corpus), diversity **0.935**.
-V5's comparison point. Caveat: QM9 caps at 9 heavy atoms, so candidates are small
+Caveat: QM9 caps at 9 heavy atoms, so candidates are small
 fragments (e.g. `OCC(O)N1CCC1`, QED 0.487) — expected, not a defect.
+
+## Retrieval-Augmented Generation (V5) ✓
+
+The V4 checkpoint is unconditional (`task_type=[]`, verified in weights), so
+guidance-vector injection is impossible without retraining — and retraining
+conditional would condition on property vectors, not molecule identity. V5 uses
+**seed-graph init** instead: the top retrieved molecule's graph is forward-noised
+to step `noise_steps`, then denoised through the real loop
+(`backend/app/generation/conditioned.py`). Lighter-touch path sanctioned by
+`docs/architecture.md`; ablatable via the `noise_steps` knob.
+
+- `POST /projects/{id}/generate {n, noise_steps=100, seed}`: re-runs retrieval,
+  gates on `RETRIEVAL_CONDITION_MIN_TANIMOTO = 0.3` (named, disclosed), returns
+  `conditioning: {mode, seed_smiles?, similarity?}` — `retrieval-conditioned` or
+  `fallback-unconditioned` with reason, never silent
+- Task computes `avg_similarity_to_seed` (mean Tanimoto of valid outputs to the
+  seed) alongside V4 metrics; frontend shows a conditioning badge + sim-to-seed
+- Projects without a seed molecule get 422 (fallback path is for weak retrieval,
+  not absent seeds — target-only projects already answer honestly in V2)
+
+| Run (ASPIRIN seed, n=20, seed 42) | Validity | Uniq | Nov | Diversity | Sim-to-seed |
+|---|---|---|---|---|---|
+| V4 unconditioned (baseline) | 0.75 | 1.0 | 1.0 | 0.935 | n/a |
+| V5 conditioned, k=100 | 0.80 | 1.0 | 1.0 | 0.928 | 0.079 |
+| V5 conditioned, k=50 | 0.30 | 1.0 | 1.0 | 0.868 | 0.128 |
+
+Honest reading: the knob works (lower k → closer to seed: 0.079 → 0.128) without
+collapsing diversity, but absolute similarities stay low — QM9-fragment outputs
+can't get structurally close to a drug-sized seed like aspirin. The mechanism is
+proven; its visible effect is bounded by the backbone's molecule size. A larger
+backbone (ZINC-scale, V4-future) is what would make the shift dramatic.
 
 ## Quick Start
 

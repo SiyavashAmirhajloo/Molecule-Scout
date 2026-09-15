@@ -24,9 +24,16 @@ type GenerationResult = {
     uniqueness: number;
     novelty: number;
     diversity: number;
+    avg_similarity_to_seed: number | null;
   };
   checkpoint: string;
   seed: number | null;
+  conditioning: {
+    mode: string;
+    seed_smiles?: string;
+    similarity?: number;
+    reason?: string;
+  };
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -150,6 +157,42 @@ export default function Home() {
             {response.results.length > 0 && (
               <div className="mt-3">
                 <MoleculeTable rows={response.results} />
+                <button
+                  onClick={async () => {
+                    setGenError(null);
+                    setGenResult(null);
+                    try {
+                      const r = await fetch(
+                        `${API}/projects/${response.project.id}/generate`,
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ n: 20 }),
+                        },
+                      );
+                      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                      const { id } = await r.json();
+                      setGenJobId(id);
+                      setGenStatus("queued");
+                      const poll = setInterval(async () => {
+                        const s = await fetch(`${API}/jobs/${id}`).then((x) => x.json());
+                        setGenStatus(s.status);
+                        if (s.status === "success") {
+                          clearInterval(poll);
+                          setGenResult(s.result);
+                        } else if (s.status === "failure") {
+                          clearInterval(poll);
+                          setGenError(s.error ?? "Generation failed");
+                        }
+                      }, 2000);
+                    } catch (err) {
+                      setGenError(err instanceof Error ? err.message : "Request failed");
+                    }
+                  }}
+                  className="mt-4 rounded bg-emerald-600 px-4 py-2 text-sm font-medium"
+                >
+                  Generate conditioned on these results
+                </button>
               </div>
             )}
           </section>
@@ -218,7 +261,23 @@ export default function Home() {
               <p className="font-mono text-sm text-zinc-400">
                 validity {genResult.metrics.validity} · uniqueness{" "}
                 {genResult.metrics.uniqueness} · novelty {genResult.metrics.novelty} ·
-                diversity {genResult.metrics.diversity} · {genResult.checkpoint}
+                diversity {genResult.metrics.diversity}
+                {genResult.metrics.avg_similarity_to_seed !== null &&
+                  ` · sim-to-seed ${genResult.metrics.avg_similarity_to_seed}`}{" "}
+                · {genResult.checkpoint}
+              </p>
+              <p className="mt-1 text-sm text-zinc-400">
+                {genResult.conditioning.mode === "retrieval-conditioned" ? (
+                  <>
+                    Conditioned on{" "}
+                    <code className="font-mono text-zinc-200">
+                      {genResult.conditioning.seed_smiles}
+                    </code>{" "}
+                    (similarity {genResult.conditioning.similarity})
+                  </>
+                ) : (
+                  <>Fallback: {genResult.conditioning.reason ?? "unconditioned"}</>
+                )}
               </p>
               <div className="mt-3">
                 <MoleculeTable
