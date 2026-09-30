@@ -81,6 +81,16 @@ def test_oversized_ligand_excluded_not_docked():
     assert prep_ligand("C" * (MAX_LIGAND_HEAVY_ATOMS + 1)) is None
 
 
+def test_multifragment_ligand_keeps_parent_and_never_raises():
+    """Salts/dotted SMILES are multi-fragment; Meeko rejects those outright.
+    We strip to the parent, and no molecule may raise out of prep_ligand."""
+    asprin_salt = "CC(=O)Oc1ccccc1C(=O)O.Cl"
+    assert prep_ligand(asprin_salt) is not None
+    assert prep_ligand("CCO.CCN") is not None
+    for bad in ("not-a-molecule", "C" * (MAX_LIGAND_HEAVY_ATOMS + 1), "[Nope]"):
+        assert prep_ligand(bad) is None
+
+
 def test_unknown_pdb_error_is_distinct():
     assert issubclass(UnknownPDBError, ValueError)
 
