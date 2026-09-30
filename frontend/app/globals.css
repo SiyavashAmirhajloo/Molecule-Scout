@@ -1,3 +1,62 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --font-sans: "Fira Sans", system-ui, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, monospace;
+}
+
+body {
+  @apply bg-lab-bg text-lab-text font-sans antialiased;
+}
+
+/* The lab bench: one centered instrument panel, gutters that grow with the
+   viewport so the canvas never feels like a page you scroll past. */
+@layer components {
+  .bench {
+    @apply mx-auto w-full max-w-bench px-6 py-8 sm:px-10 lg:px-14;
+  }
+  .panel {
+    @apply rounded-xl border border-lab-line bg-lab-panel p-5;
+  }
+  .panel-title {
+    @apply text-sm font-medium uppercase tracking-wider text-lab-muted;
+  }
+  .field-label {
+    @apply mb-1 block text-xs font-medium text-lab-muted;
+  }
+  .field-input {
+    @apply w-full rounded-md border border-lab-line bg-lab-surface px-3 py-2
+      font-mono text-sm text-lab-text placeholder:text-lab-muted/60
+      focus:border-lab-amber focus:outline-none focus:ring-1 focus:ring-lab-amber;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-lab-amber
+      px-4 py-2 text-sm font-semibold text-lab-bg transition
+      hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border
+      border-lab-line bg-lab-surface px-4 py-2 text-sm font-medium text-lab-text
+      transition hover:border-lab-amber disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-lab-line
+      bg-lab-surface px-2.5 py-0.5 text-xs font-medium text-lab-muted;
+  }
+  .data-cell {
+    @apply font-mono text-sm tabular-nums;
+  }
+}
+
+/* Respect reduced motion: the instrument never animates on request. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

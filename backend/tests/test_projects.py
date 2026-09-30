@@ -39,6 +39,16 @@ def test_bad_smiles_422(client: TestClient):
     assert r.status_code == 422
 
 
+def test_seed_field_falls_back_to_name(client: TestClient):
+    """One UI field accepts either form: a compound name sent as seed_smiles
+    resolves by name instead of failing as invalid SMILES."""
+    r = client.post("/projects", json={"seed_smiles": "ASPIRIN"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["project"]["seed_source"] == "name"
+    assert body["seed_resolved"] == ASPIRIN
+
+
 def test_empty_body_422(client: TestClient):
     r = client.post("/projects", json={})
     assert r.status_code == 422

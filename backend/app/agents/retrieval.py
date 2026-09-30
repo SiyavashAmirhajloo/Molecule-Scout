@@ -31,7 +31,17 @@ async def resolve_seed(
             )
         ).scalar_one_or_none()
         if row is None:
-            raise HTTPException(422, f"Unknown compound name: {name!r}")
+            # Be generous: ERLOTINIB is stored as "Erlotinib HCl", so an
+            # exact match would tell users a real drug doesn't exist.
+            row = (
+                await session.execute(
+                    select(KnownMolecule).where(
+                        KnownMolecule.name.ilike(f"%{name}%")
+                    ).limit(1)
+                )
+            ).scalar_one_or_none()
+            if row is None:
+                raise HTTPException(422, f"Unknown compound name: {name!r}")
         mol = parse_smiles(row.canonical_smiles)
         assert mol is not None  # stored SMILES were RDKit-validated at ingest
         return mol, row.canonical_smiles, "name"
