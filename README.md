@@ -6,31 +6,79 @@ AI research assistant for early-stage drug discovery. Given a disease target or 
 molecule, it surveys known compounds, proposes novel candidates with a retrieval-
 conditioned diffusion model, filters and docks them against the target, and returns
 a ranked, explained shortlist. Built as a real product (FastAPI + Celery + pgvector
-+ Next.js + LangGraph), not a notebook. **Generated molecules are not validated drug
++ Next.js), not a notebook. **Generated molecules are not validated drug
 candidates** — output is a triage aid requiring human/wet-lab verification.
+
+## Try V6 in five minutes
+
+```bash
+docker compose up --build          # api + worker + db + redis + frontend
+docker compose exec api python scripts/ingest_chembl.py   # one-shot: 3,417 approved drugs
+```
+
+Then open **http://localhost:3000** and walk the loop:
+
+1. **Create a project** — PDB ID `1M17` (EGFR), seed `ERLOTINIB` (or any SMILES).
+   You get a retrieval table of ChEMBL analogs with citations and property columns.
+2. **Generate conditioned on these results** — diffusion candidates appear with the
+   V4 metrics line (validity/uniqueness/novelty/diversity) and a conditioning badge
+   showing which retrieved molecule was used, or an honest fallback reason.
+3. **Dock against 1M17** — the candidate table gains Rank / Affinity / Score columns
+   plus a formula banner: `rank_score = 0.5 * norm_affinity + 0.3 * QED + 0.2 * novelty`
+   (`v6-1`). Rows sort by score, descending.
+4. **Click a row** — a 3D pose viewer renders the ligand sticks (3Dmol.js, pinned
+   CDN; if the CDN is unreachable you get a visible error, never a blank box).
+
+The same flow over curl (docking three known drugs directly, real numbers from
+a live run):
+
+```bash
+curl -X POST localhost:8000/projects -H 'Content-Type: application/json' \
+  -d '{"pdb_id":"1M17","seed_name":"ERLOTINIB"}'
+# → project id, retrieval hits with ChEMBL citations
+
+curl -X POST localhost:8000/projects/<id>/dock -H 'Content-Type: application/json' \
+  -d '{"candidate_smiles":["COc1cc2ncnc(Nc3ccc(F)c(Cl)c3)c2cc1OCCCN1CCOCC1",
+       "COCCOC1=C(C=C2C(=C1)C(=NC=N2)NC3=CC=CC(=C3)C#C)OCCOC",
+       "CC(=O)Oc1ccccc1C(=O)O"]}'
+# → poll GET /jobs/<job> → ranked rows; expected affinities:
+#   gefitinib  ≈ -8.0  (score 0.86)
+#   erlotinib  ≈ -7.3  (score 0.66)
+#   aspirin    ≈ -5.7  (score 0.37)
+# Both real EGFR inhibitors beat aspirin. scores differ if novelty≠1
+# (these drugs are IN the ChEMBL corpus, so novelty = 0 for a seeded DB).
+
+curl localhost:8000/projects/<id>/docking/<result_id>
+# → pose PDBQT + box center + formula_version, keyed by integer result id
+```
+
+Docking sanity check (local venv, needs network + `backend/bin/vina`):
+
+```bash
+.venv/Scripts/python backend/scripts/dock_sanity.py --n-actives 15 --n-decoys 30
+# DUD-E EGFR, ~25 min: ROC AUC + bootstrap CI + EF@1/5/10 vs achievable max
+```
 
 ## Status — V6 Docking & Composite Ranking ✓
 
-V4 proved diffusion generation with baselines. V5 conditions it on retrieval:
-seed-graph init (denoise from the top retrieved molecule's noised graph) via
-`POST /projects/{id}/generate`, with explicit fallback below 0.3 Tanimoto.
-
 | Check | Status |
 |---|---|
-| `docker compose up --build` boots `api` + `worker` + `db` (pgvector) + `redis` | ✓ |
+| `docker compose up --build` boots `api` + `worker` + `db` (pgvector) + `redis` + `frontend` | ✓ |
 | `GET /health` reports `{"db": "ok", "redis": "ok"}` | ✓ |
-| `POST /jobs/test` → `GET /jobs/{id}` round-trips via Celery (`success`, `result: 3`) | ✓ |
-| `pytest` passes (health shape + eager job test) | ✓ |
+| `POST /jobs/test` → `GET /jobs/{id}` round-trips via Celery | ✓ |
+| `pytest` — 49 tests, eager Celery, no services needed | ✓ |
 | `ruff check` clean, `tsc --noEmit` + `next build` clean | ✓ |
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
-| Frontend shell renders and fetches `/health` | ✓ |
+| Live E2E: project → generate → dock → ranked table → 3D pose | ✓ |
+| DUD-E EGFR smoke: actives enriched at top of ranking (AUC 0.622, CI [0.445, 0.787]) | ✓ (borderline, see below) |
 
-Next: **V6 — Docking & Composite Ranking** (AutoDock Vina, disclosed rank formula, 3D pose viewer).
+Next: **V7 — Multi-Agent Orchestration** (LangGraph coordinator over the V1–V6
+agents, Langfuse tracing).
 
 ## Knowledge Base (V1) ✓
 
-Local store of **3,417 approved drugs** ingested 2026-09-09 from the ChEMBL REST
-API (`molecule.json?max_phase=4`, 4,225 records total; 808 had no structure,
+Local store of **3,417 approved drugs** ingested from the ChEMBL REST API
+(`molecule.json?max_phase=4`, 4,225 records total; 808 had no structure,
 0 failed RDKit parsing, 0 duplicate canonical SMILES). Chosen because approved
 drugs are a defensible, citable, target-agnostic retrieval baseline — the
 "similar to known drug X" story in later reports is grounded in something real.
@@ -45,8 +93,6 @@ drugs are a defensible, citable, target-agnostic retrieval baseline — the
   fingerprints (brute-force over ~3.4k rows; pgvector ordering if it grows)
 
 ```bash
-docker compose up --build
-docker compose exec api python scripts/ingest_chembl.py   # one-shot seed
 curl "localhost:8000/molecules/similar?smiles=CC(%3DO)Oc1ccccc1C(%3DO)O&limit=3"
 # ASPIRIN 1.0, BENORILATE 0.51, SALICYLIC ACID 0.45
 ```
@@ -63,36 +109,27 @@ and every hit carries `citation: {database: "ChEMBL", entry_id, url}`.
 - Target-only (PDB ID, no seed) returns `results: []` with an honest message —
   never fabricated retrieval (V5's generation fallback depends on this distinction)
 - `projects` table via Alembic `002` (pdb_id, canonical seed_smiles, seed_source)
-
-**Limitation:** `pdb_id` is a stored reference string only — no structure fetch,
-no pocket handling. Full protein structure handling arrives with docking (V6).
-
-```bash
-curl -X POST localhost:8000/projects -H 'Content-Type: application/json' \
-  -d '{"seed_name":"ASPIRIN","limit":3}'
-# seed_resolved: CC(=O)Oc1ccccc1C(=O)O; ASPIRIN 1.0 + BENORILATE + SALICYLIC ACID,
-# each with a working https://www.ebi.ac.uk/chembl/explore/compound/CHEMBL… link
-```
+- **V6 removed this limitation:** `pdb_id` is now validated
+  (`^[0-9][A-Za-z0-9]{3}$`, traversal-safe) and used to fetch + prepare the real
+  receptor structure on first dock.
 
 ## Property Filtering (V3) ✓
 
 Every retrieval hit carries `properties` computed live by
-`backend/app/agents/properties.py` (pure RDKit function — reused as-is for
-generated candidates in V4; no migration, nothing persisted):
+`backend/app/agents/properties.py` (pure RDKit function — reused for generated
+candidates in V4 and every docked candidate in V6):
 
 - **QED** (`rdkit.Chem.QED.qed`) — 0–1 drug-likeness; aspirin 0.550
-- **SA score** (`rdkit.Contrib.SA_Score`, Ertl, rdkit 2026.03.6) — 1 (easy) to 10;
-  aspirin 1.58
+- **SA score** (`rdkit.Contrib.SA_Score`, Ertl) — 1 (easy) to 10; aspirin 1.58
 - **Lipinski** (MW ≤ 500, logP ≤ 5, HBD ≤ 5, HBA ≤ 10) — each component shown,
   `passes` = ≤1 violation
 - **PAINS** (480-pattern catalog) — `passes` = zero matches
 
 No server-side thresholds — the API returns the full breakdown and the UI
-sorts/filters client-side. Cutoffs arrive in V6 as a pre-docking gate.
+sorts/filters client-side. QED feeds the V6 rank score directly.
 `frontend/app/components/MoleculeTable.tsx` is the shared comparison table:
-sortable headers (similarity, QED, SA, MW, logP) + filters (min QED, max SA,
-Lipinski-only, PAINS-free). Generic rows (optional `similarity`/`citation`) so
-V4's generation view reuses it unchanged.
+sortable headers (similarity, QED, SA, MW, logP, and V6's affinity/score) +
+filters (min QED, max SA, Lipinski-only, PAINS-free).
 
 ## Baseline Generation (V4) ✓
 
@@ -101,23 +138,16 @@ Real 2D graph diffusion, not a placeholder. **Backbone: Graph-DiT**
 CPU sampling is feasible, MW/logP conditioning is native, and 2D fits V5's
 conditioning paths; see `docs/tech-stack.md` for the full tradeoff.
 
-- Train on free Colab T4 via `notebooks/train_graphdit_qm9.py`, export `.pt`;
+- Train on free Colab T4 via `notebooks/train_graphdit_qm9.ipynb`, export `.pt`;
   worker runs **CPU-only torch** + `torch-molecule`, loads checkpoint from
   `models/graphdit-qm9.pt` (`GENERATOR_CHECKPOINT` overrides, gitignored)
 - `GeneratorBackend` Protocol (`backend/app/generation/base.py`) keeps diffusion
-  swappable; `GraphDiTBackend` is the real provider (no fragment fallback shipped)
+  swappable; `GraphDiTBackend` is the real provider
 - `POST /jobs/generate {n, mw_min/max, logp_min/max, seed}` → Celery task →
-  `GET /jobs/{id}` poll (queued/running/done/failed); every candidate gets V3
-  `properties`; each run records `{checkpoint: "graphdit-qm9/<sha>", seed}`
+  `GET /jobs/{id}` poll; every candidate gets V3 `properties`; each run records
+  `{checkpoint: "graphdit-qm9/<sha>", seed}`
 - Metrics computed directly (no MOSES dep): validity, uniqueness, novelty (vs
   `known_molecules`), diversity (1 − mean pairwise Tanimoto)
-- Frontend "Generate candidates" section reuses `MoleculeTable` unchanged + metrics line
-
-```bash
-curl -X POST localhost:8000/jobs/generate -H 'Content-Type: application/json' \
-  -d '{"n":20,"seed":42}'
-# poll GET /jobs/<id> → candidates + metrics + checkpoint
-```
 
 **Baseline numbers** (checkpoint `graphdit-qm9/21ff440fa37f`, Graph-DiT 100 epochs
 on QM9/133,885, Colab T4; sampled CPU, n=20, seed 42, ~63s): validity **0.75**,
@@ -128,10 +158,9 @@ fragments (e.g. `OCC(O)N1CCC1`, QED 0.487) — expected, not a defect.
 ## Retrieval-Augmented Generation (V5) ✓
 
 The V4 checkpoint is unconditional (`task_type=[]`, verified in weights), so
-guidance-vector injection is impossible without retraining — and retraining
-conditional would condition on property vectors, not molecule identity. V5 uses
-**seed-graph init** instead: the top retrieved molecule's graph is forward-noised
-to step `noise_steps`, then denoised through the real loop
+guidance-vector injection is impossible without retraining. V5 uses **seed-graph
+init** instead: the top retrieved molecule's graph is forward-noised to step
+`noise_steps`, then denoised through the real loop
 (`backend/app/generation/conditioned.py`). Lighter-touch path sanctioned by
 `docs/architecture.md`; ablatable via the `noise_steps` knob.
 
@@ -139,10 +168,10 @@ to step `noise_steps`, then denoised through the real loop
   gates on `RETRIEVAL_CONDITION_MIN_TANIMOTO = 0.3` (named, disclosed), returns
   `conditioning: {mode, seed_smiles?, similarity?}` — `retrieval-conditioned` or
   `fallback-unconditioned` with reason, never silent
-- Task computes `avg_similarity_to_seed` (mean Tanimoto of valid outputs to the
-  seed) alongside V4 metrics; frontend shows a conditioning badge + sim-to-seed
+- Task computes `avg_similarity_to_seed` alongside V4 metrics; frontend shows a
+  conditioning badge + sim-to-seed
 - Projects without a seed molecule get 422 (fallback path is for weak retrieval,
-  not absent seeds — target-only projects already answer honestly in V2)
+  not absent seeds)
 
 | Run (ASPIRIN seed, n=20, seed 42) | Validity | Uniq | Nov | Diversity | Sim-to-seed |
 |---|---|---|---|---|---|
@@ -153,33 +182,59 @@ to step `noise_steps`, then denoised through the real loop
 Honest reading: the knob works (lower k → closer to seed: 0.079 → 0.128) without
 collapsing diversity, but absolute similarities stay low — QM9-fragment outputs
 can't get structurally close to a drug-sized seed like aspirin. The mechanism is
-proven; its visible effect is bounded by the backbone's molecule size. A larger
-backbone (ZINC-scale, V4-future) is what would make the shift dramatic.
+proven; its visible effect is bounded by the backbone's molecule size.
 
 ## Docking & Composite Ranking (V6) ✓
 
-Turns generated, filtered candidates into ranked, actionable results.
+Turns candidates into ranked, actionable results.
 
-- **AutoDock Vina 1.2.7** — official release binary provisioned by `backend/scripts/fetch_vina.py`
-  (pinned SHA-256 per platform, idempotent; pip `vina` package unused).
+- **AutoDock Vina 1.2.7** — official release binary provisioned by
+  `backend/scripts/fetch_vina.py` (pinned SHA-256 per platform, idempotent;
+  pip `vina` package unused — no Windows wheels). Subprocess path in local dev
+  and Docker alike, so there is exactly one docking code path. `--cpu 2` so
+  Vina doesn't starve the Celery worker.
 - **Meeko PDBQT prep** — maintained MGLTools successor, pip-installable, handles
-  altloc residues via `--default_altloc`; verified on EGFR 1M17.
-- **Composite rank score** — `rank_score = 0.5 * norm_affinity + 0.3 * QED + 0.2 * novelty`
-  (`formula_version="v6-1"`); disclosed in API, UI, and persisted rows.
-- **3D pose viewer** — 3Dmol.js via pinned CDN + SRI; single ligand pose + optional receptor.
-- **DUD-E EGFR smoke test** — 15 actives + 30 decoys via the product path on 1M17.
-  *Result: AUC 0.622 (CI [0.445, 0.787]) — see `python scripts/dock_sanity.py`.
-  The gate is 0.7; CI crosses 0.7 so the setup is borderline. EF@1 hit 1/1 (max 3.0),
-  EF@5 3/5 (max 3.0). A fail here signals a setup check, not a broken product.*
+  the altloc residues 1M17 needs (A:751/A:831) via `--default_altloc A`.
+  Deviation from the Open Babel/MGLTools named in `docs/tech-stack.md`,
+  recorded there in this version.
+- **Co-crystal pocket only** — box centers on the largest credible HETATM ligand;
+  sulfates, ions, glycerol, and modified residues (MSE/SEP/TPO/PTR) are excluded.
+  No ligand → 422 with the exact message *"docking refused rather than guessing"*.
+  Fixed 20Å cube.
+- **Composite rank score** — `rank_score = 0.5 * norm_affinity + 0.3 * QED +
+  0.2 * novelty` (`formula_version = "v6-1"`). Disclosed in API, UI, and every
+  persisted row; shown next to the number, never as a bare score.
+- **`DockingResult` persistence** (Alembic `003`) — pose, affinity, novelty,
+  score, formula version, box center per candidate, keyed by integer id for the
+  pose viewer (`SMILES is never a URL key` — `/`, `#`, `\`).
+- **3D pose viewer** — 3Dmol.js via pinned CDN (v2.4.0) + SRI hash; a failed
+  load shows a visible error.
+- **Trust-boundary caps** — 50 candidates/request, 100 heavy atoms/molecule,
+  ETKDG pre-filtered so a pathological embed can't hang a worker.
 
-**Limitations:**
-- `rank_score` is **batch-relative** (min-max normalized per run; never across projects).
-- A batch of one always gets norm = 1.0 (a free 0.5 of rank score).
-- Co-crystal-ligand-only pocket: targets without a ligand 422 rather than guess.
-- Altloc residues resolved to **conformer A** (1M17 has A:751/A:831).
-- Fixed 20Å box — Vina convention; small ligands get a needlessly large search space.
-- DUD-E result is a smoke test at non-DUD-E prevalence (~1:4), not a benchmark.
-- DiffDock = post-V10.
+```bash
+python backend/scripts/dock_sanity.py   # DUD-E EGFR smoke test
+# 15 actives + 30 decoys, seed 42, ~25 min on CPU
+# ROC AUC = 0.622, bootstrap 95% CI [0.445, 0.787], gate 0.7
+# EF@1 3.00 (max 3.00) · EF@5 1.80 (max 3.00) · EF@10 1.20 (max 3.00)
+```
+
+What that result means: actives are enriched at the top (EF@1 hits 1/1, EF@5
+3/5) and the CI crosses the 0.7 gate, but the point estimate sits below it.
+**This is a smoke test, not a benchmark** — our 1:4 active:decoy ratio is far
+from DUD-E's ~1:60 where EF is most meaningful, and Vina's per-target DUD-E
+performance is modest anyway. A fail means check the bounding box, then receptor
+prep, then protonation — in that order. The gate is fixed in advance and is not
+adjusted to pass.
+
+**Limitations (disclosed, not hidden):**
+- `rank_score` is **batch-relative** — min-max normalized within one docking
+  run. Comparable inside a batch, never across projects or runs.
+- A batch of one always gets norm_affinity = 1.0 (a free 0.5 of rank score).
+- Altloc residues resolve to **conformer A** — a modeling choice, not neutral.
+- Novelty = 1 − max Tanimoto vs the ChEMBL corpus: known drugs dock with
+  novelty 0.0, generated fragments near 1.0.
+- DiffDock alternate backend = post-V10 (roadmap "Future Versions").
 
 ## Quick Start
 
@@ -187,12 +242,14 @@ Prerequisites: Docker + Docker Compose.
 
 ```bash
 docker compose up --build
+docker compose exec api python scripts/ingest_chembl.py   # first time only
 ```
 
-- API: http://localhost:8000 — `GET /health`, `POST /jobs/test`, `GET /jobs/{id}`
-- Frontend: run separately `npm --prefix frontend install && npm --prefix frontend run dev` → http://localhost:3000
-- Postgres (pgvector): `localhost:5432` (`postgres`/`postgres`/`moleculescout`)
-- Redis: `localhost:6379`
+- **Frontend:** http://localhost:3000 (create project → retrieve → generate → dock → pose)
+- **API:** http://localhost:8000/docs — `GET /health`, `POST /projects`,
+  `POST /projects/{id}/generate`, `POST /projects/{id}/dock`, `GET /jobs/{id}`
+- **Postgres (pgvector):** `localhost:5432` (`postgres`/`postgres`/`moleculescout`)
+- **Redis:** `localhost:6379`
 
 Verify without Docker (backend tests use eager Celery, no services needed):
 
@@ -201,29 +258,54 @@ python -m venv .venv && .venv/Scripts/python -m pip install -r backend/requireme
 PYTHONPATH=backend .venv/Scripts/python -m pytest backend/tests -v
 ```
 
+Provision the Vina binary locally (idempotent, checksum-verified):
+
+```bash
+.venv/Scripts/python backend/scripts/fetch_vina.py
+```
+
 ## Project Structure
 
 ```
-docker-compose.yml          # api + worker + db (pgvector/pgvector:pg16) + redis
+docker-compose.yml           # api + worker + db (pgvector) + redis + frontend
 backend/
-  Dockerfile                # python:3.13-slim, non-root user
-  requirements.txt
+  Dockerfile                 # python:3.13-slim, non-root, fetches Vina at build
+  requirements.txt           # includes meeko + gemmi (PDBQT prep)
   app/
-    main.py                 # FastAPI factory + /health (DB + Redis probes)
-    config.py               # Pydantic settings (DATABASE_URL, REDIS_URL)
-    db.py                   # async SQLAlchemy + CREATE EXTENSION vector
-    api/jobs.py             # POST /jobs/test, GET /jobs/{id}
-    workers/celery_app.py   # Celery (Redis broker/backend)
-    workers/tasks.py        # add(a, b) — proves the background-job loop
-  tests/                    # test_health.py, test_jobs.py (eager mode), test_chem.py
-  alembic/                  # env.py + versions/ (001 known_molecules), upgraded at startup
-  scripts/ingest_chembl.py  # one-shot ChEMBL max_phase=4 seed
+    main.py                  # FastAPI factory + /health (DB + Redis probes)
+    config.py                # Pydantic settings (DATABASE_URL, REDIS_URL)
+    db.py                    # async SQLAlchemy
+    agents/
+      retrieval.py           # seed resolution + Tanimoto retrieval + citations
+      properties.py          # QED / SA / Lipinski / PAINS (pure RDKit)
+    api/
+      projects.py            # create / generate / dock / pose-by-id endpoints
+      jobs.py, molecules.py  # job polling, similarity search
+    docking.py               # V6: receptor fetch+prep, Vina runner, rank_batch
+    generation/
+      graphdit.py            # V4 Graph-DiT backend (checkpoint)
+      conditioned.py         # V5 seed-graph init
+      evaluate.py            # validity/uniqueness/novelty/diversity
+    workers/
+      celery_app.py          # Celery (Redis broker/backend)
+      tasks.py               # add / generate_molecules / dock_molecules
+    models/                  # known_molecules, projects, docking_results
+  alembic/versions/          # 001 known_molecules, 002 projects, 003 docking
+  scripts/
+    ingest_chembl.py         # one-shot ChEMBL max_phase=4 seed
+    fetch_vina.py            # pinned-SHA256 Vina binary provisioning
+    dock_sanity.py           # DUD-E EGFR smoke test
+    verify_e2e_live.py       # live-stack E2E verification
+  bin/                       # vina binary (gitignored, script-managed)
+  tests/                     # 49 tests incl. docking (Vina mocked in CI)
 frontend/
-  app/page.tsx              # health shell (fetches NEXT_PUBLIC_API_URL/health)
-  app/layout.tsx, globals.css, tailwind.config.js, next.config.mjs
-.github/workflows/ci.yml    # backend + frontend jobs
-docs/                       # tech-stack.md, architecture.md, requirements.md, roadmap.md
-prompts/                    # version-scoped build prompts (V1–V10)
+  app/page.tsx               # the walkthrough flow: retrieve → generate → dock → pose
+  app/components/
+    MoleculeTable.tsx        # shared comparison table (V3/V4/V5/V6 columns)
+    PoseViewer.tsx           # 3Dmol.js pose viewer (pinned CDN + SRI)
+.github/workflows/ci.yml     # backend + frontend jobs
+docs/                        # tech-stack, architecture, requirements, roadmap
+prompts/                     # version-scoped build prompts (V1–V10)
 ```
 
 ## Roadmap
@@ -232,10 +314,11 @@ prompts/                    # version-scoped build prompts (V1–V10)
 |---|---|---|
 | **V0** | Foundation | Compose stack + health + job queue + shell + CI |
 | **V1** | Molecule Knowledge Base | 3,417 ChEMBL approved drugs, RDKit, fingerprints, similarity search |
-| V2 | Project Intake & Retrieval | Retrieval Agent with citations |
-| V3 | Property Filtering | QED/SA/Lipinski/PAINS |
-| V4 | Baseline Generation | Diffusion backbone, background jobs, MOSES/GuacaMol metrics |
-| V5 | Retrieval-Augmented Generation | RetMol-style conditioning || **V6** | Docking & Ranking | AutoDock Vina, composite score, 3D pose viewer |
+| **V2** | Project Intake & Retrieval | Retrieval Agent with citations |
+| **V3** | Property Filtering | QED/SA/Lipinski/PAINS |
+| **V4** | Baseline Generation | Diffusion backbone, background jobs, eval metrics |
+| **V5** | Retrieval-Augmented Generation | RetMol-style conditioning |
+| **V6** | Docking & Ranking | AutoDock Vina, composite score, 3D pose viewer |
 | V7 | Multi-Agent Orchestration | LangGraph + Langfuse |
 | V8 | Report & Notebook | LLM rationales, shortlist, exports |
 | V9 | Vision Agent | Literature structure extraction (highest-risk, last) |
@@ -243,9 +326,13 @@ prompts/                    # version-scoped build prompts (V1–V10)
 
 See `docs/roadmap.md` for the full plan and `docs/tech-stack.md` for mandated choices.
 
-## Tech Stack (V0)
+## Tech Stack
 
-Python 3.13, FastAPI, SQLAlchemy (async) + asyncpg, Celery + Redis, PostgreSQL + pgvector (`pgvector/pgvector:pg16`), Next.js 14 + TypeScript + Tailwind. RDKit/LangGraph/Diffusion/Docking arrive with the versions that need them — not before.
+Python 3.13, FastAPI, SQLAlchemy (async) + asyncpg, Celery + Redis,
+PostgreSQL + pgvector, Next.js 14 + TypeScript + Tailwind. Cheminformatics:
+RDKit (properties/fingerprints), Meeko (PDBQT prep), AutoDock Vina 1.2.7
+(subprocess). Generation: Graph-DiT via `torch-molecule` (CPU sampling).
+LangGraph/Langfuse arrive with V7.
 
 ## License
 
