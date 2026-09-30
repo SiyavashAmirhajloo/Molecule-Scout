@@ -61,7 +61,12 @@ async def create_project(
             _validate_pdb_id(body.pdb_id)
         except ValueError as e:
             raise HTTPException(422, str(e))
-    resolved = await resolve_seed(session, body.seed_smiles, body.seed_name)
+    # One seed field on the UI accepts either form: if seed_smiles doesn't
+    # parse, treat it as a compound name rather than rejecting ERLOTINIB.
+    seed_smiles, seed_name = body.seed_smiles, body.seed_name
+    if seed_smiles and parse_smiles(seed_smiles) is None:
+        seed_name, seed_smiles = seed_smiles, None
+    resolved = await resolve_seed(session, seed_smiles, seed_name)
     project = Project(
         pdb_id=body.pdb_id,
         seed_smiles=resolved[1] if resolved else None,
@@ -199,6 +204,90 @@ class DockingDetailOut(BaseModel):
     pose_pdbqt: str | None
     receptor_pdb_id: str | None
     box_center: list[float]
+
+
+@router.get("/{project_id}", response_model=ProjectResponse)
+async def get_project(
+    project_id: int, session: AsyncSession = Depends(get_session)
+) -> ProjectResponse:
+    from sqlalchemy import select
+
+    project = (
+        await session.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(404, "Project not found")
+    if not project.seed_smiles:
+        return ProjectResponse(
+            project=ProjectOut.model_validate(project, from_attributes=True),
+            seed_resolved=None,
+            results=[],
+            message=f"No compounds associated with target {project.pdb_id} yet — "
+            "add a seed molecule to retrieve similar known compounds.",
+        )
+    seed_mol = parse_smiles(project.seed_smiles)
+    assert seed_mol is not None
+    hits = await retrieve(session, seed_mol, 10)
+    results = []
+    for m, s in hits:
+        mol = parse_smiles(m.canonical_smiles)
+        assert mol is not None
+        results.append(
+            RetrievalHit(
+                canonical_smiles=m.canonical_smiles,
+                chembl_id=m.chembl_id,
+                name=m.name,
+                similarity=round(s, 4),
+                citation=citation(m),
+                properties=compute_properties(mol),
+            )
+        )
+    return ProjectResponse(
+        project=ProjectOut.model_validate(project, from_attributes=True),
+        seed_resolved=project.seed_smiles,
+        results=results,
+    )
+
+
+@router.get("/{project_id}/docking", response_model=list[DockingDetailOut])
+async def docking_list(
+    project_id: int, session: AsyncSession = Depends(get_session)
+) -> list[DockingDetailOut]:
+    from sqlalchemy import select
+
+    from app.docking import FORMULA
+    from app.models.docking import DockingResult
+
+    project = (
+        await session.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(404, "Project not found")
+    rows = (
+        await session.execute(
+            select(DockingResult).where(DockingResult.project_id == project_id)
+        )
+    ).scalars().all()
+    return [
+        DockingDetailOut(
+            id=r.id,
+            smiles=r.candidate_smiles,
+            affinity=r.affinity,
+            qed=r.qed,
+            novelty=r.novelty,
+            rank_score=r.rank_score,
+            formula=FORMULA,
+            formula_version=r.formula_version,
+            pose_pdbqt=None,
+            receptor_pdb_id=r.receptor_pdb_id,
+            box_center=[
+                r.box_center_x or 0.0,
+                r.box_center_y or 0.0,
+                r.box_center_z or 0.0,
+            ],
+        )
+        for r in rows
+    ]
 
 
 @router.get("/{project_id}/docking/{result_id}", response_model=DockingDetailOut)
