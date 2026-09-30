@@ -115,8 +115,14 @@ as better open implementations appear.
 ## Docking
 
 - **AutoDock Vina** — open-source, the default docking engine
-- **Open Babel / MGLTools** — for receptor/ligand file preparation
-  (PDB → PDBQT conversion, adding hydrogens, assigning charges)
+- **Receptor/ligand PDBQT prep: Meeko** (maintained MGLTools successor,
+  pip-installable, handles altloc residues via `--default_altloc`).
+  Replaces the system-level Open Babel/MGLTools install; verified on 1M17.
+- **Vina runs as the official release binary** (v1.2.7) provisioned by
+  `backend/scripts/fetch_vina.py` (pinned SHA-256 per platform, idempotent).
+  The pip `vina` package is not used — it has no Windows wheels and its sdist
+  build fails. Subprocess path in both local dev and Docker, so there is one
+  docking code path.
 - Future/optional alternate backend: **DiffDock** — a diffusion-based
   docking pose predictor, notable because it makes this product's
   second legitimate use of diffusion models (pose generation, not

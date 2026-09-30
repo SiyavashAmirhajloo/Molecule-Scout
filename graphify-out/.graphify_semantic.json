@@ -1,0 +1,1235 @@
+{
+  "nodes": [
+    {
+      "id": "docs_roadmap_v6_docking_composite_ranking",
+      "label": "V6 Docking & Composite Ranking",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 6",
+      "rationale": "Turn generated candidates into ranked, actionable results. Sequenced after V5 so the diffusion core is proven; vision deliberately deferred to V9 so the highest-risk piece never gates a working product."
+    },
+    {
+      "id": "docs_roadmap_v0_foundation",
+      "label": "V0 Project Foundation",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 0"
+    },
+    {
+      "id": "docs_roadmap_v1_knowledge_base",
+      "label": "V1 Molecule Knowledge Base",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 1",
+      "rationale": "Bulk PubChem/ChEMBL slice only - do not attempt full-database ingestion."
+    },
+    {
+      "id": "docs_roadmap_v2_intake_retrieval",
+      "label": "V2 Project Intake & Retrieval",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 2"
+    },
+    {
+      "id": "docs_roadmap_v3_property_filtering",
+      "label": "V3 Property Filtering Pipeline",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 3",
+      "rationale": "Get filtering solid before adding generative complexity - cheap and immediately useful even without generation."
+    },
+    {
+      "id": "docs_roadmap_v4_baseline_generation",
+      "label": "V4 Baseline Generative Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 4",
+      "rationale": "Prove the generative core works before layering the novel retrieval-augmented mechanism on top."
+    },
+    {
+      "id": "docs_roadmap_v5_retrieval_augmented_generation",
+      "label": "V5 Retrieval-Augmented Generation",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 5",
+      "rationale": "The technical core of the product - condition the diffusion model on retrieved known compounds."
+    },
+    {
+      "id": "docs_roadmap_v7_multi_agent_orchestration",
+      "label": "V7 Multi-Agent Orchestration via LangGraph",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 7",
+      "rationale": "Wire the individually-working agents from V1-V6 into a real LangGraph workflow rather than separate endpoints called in sequence by the frontend."
+    },
+    {
+      "id": "docs_roadmap_v8_report_agent",
+      "label": "V8 Report Agent & Research Notebook",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 8"
+    },
+    {
+      "id": "docs_roadmap_v9_vision_agent",
+      "label": "V9 Vision Agent Structure Extraction",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 9",
+      "rationale": "Deliberately last among core capability versions - the highest-risk piece should not gate a working product."
+    },
+    {
+      "id": "docs_roadmap_v10_hardening",
+      "label": "V10 Production Hardening & Safety",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "Version 10"
+    },
+    {
+      "id": "docs_roadmap_version_discipline",
+      "label": "Build in Versions, De-Risk the Hard Part Last",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\CLAUDE.md",
+      "source_location": "Guiding Principle",
+      "rationale": "Prove the core retrieval -> generate -> filter -> dock -> report loop works end-to-end on already-structured data before touching the vision pipeline, so if vision turns out harder than expected the project still has something to show."
+    },
+    {
+      "id": "docs_roadmap_never_cut",
+      "label": "Things Never to Cut",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\CLAUDE.md",
+      "source_location": "Guiding Principle",
+      "rationale": "RDKit property filtering, docking against a real target, retrieval with real citations, transparent/disclosed scoring, the dual-use safety screening pass, and an honest README that never implies a generated molecule has been validated as a real drug candidate."
+    },
+    {
+      "id": "docs_architecture_coordinator",
+      "label": "Coordinator Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents"
+    },
+    {
+      "id": "docs_architecture_vision_agent",
+      "label": "Vision Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents",
+      "rationale": "Slow - runs as a background job."
+    },
+    {
+      "id": "docs_architecture_retrieval_agent",
+      "label": "Retrieval Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents"
+    },
+    {
+      "id": "docs_architecture_generation_agent",
+      "label": "Generation Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents"
+    },
+    {
+      "id": "docs_architecture_property_agent",
+      "label": "Property Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents"
+    },
+    {
+      "id": "docs_architecture_docking_agent",
+      "label": "Docking Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents",
+      "rationale": "Slow - background job. Docks surviving candidates and computes a composite rank score."
+    },
+    {
+      "id": "docs_architecture_report_agent",
+      "label": "Report Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents"
+    },
+    {
+      "id": "docs_architecture_memory_agent",
+      "label": "Memory Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents"
+    },
+    {
+      "id": "docs_architecture_evaluation_agent",
+      "label": "Evaluation Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents"
+    },
+    {
+      "id": "docs_architecture_safety_agent",
+      "label": "Safety Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Agents"
+    },
+    {
+      "id": "docs_architecture_langgraph_workflow",
+      "label": "LangGraph Core Stages Workflow",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "LangGraph Workflow - Core Stages",
+      "rationale": "intake -> literature ingestion -> KB indexing -> retrieval -> conditioned generation -> safety screening -> property filtering -> docking & ranking -> report assembly -> memory write. The Coordinator can re-enter the graph partway through."
+    },
+    {
+      "id": "docs_architecture_retmol_conditioning",
+      "label": "RetMol-Style Retrieval-Augmented Diffusion",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Retrieval-Augmented Generation",
+      "rationale": "The technical core and direct analogue of LLM-RAG applied to a diffusion model: retrieved molecule embeddings projected into the conditioning space and injected during denoising, either as cross-attention context or as a guidance vector."
+    },
+    {
+      "id": "docs_architecture_weak_retrieval_fallback",
+      "label": "Fallback on Weak Retrieval",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Retrieval-Augmented Generation",
+      "rationale": "If no sufficiently similar known compounds exist, fall back to plain property-conditioned generation rather than forcing a conditioning signal from irrelevant molecules - and say so explicitly in the report."
+    },
+    {
+      "id": "docs_architecture_vision_pipeline",
+      "label": "Vision Pipeline Structure Extraction",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Vision Pipeline"
+    },
+    {
+      "id": "docs_architecture_property_filtering",
+      "label": "Property Filtering Gate",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Property Filtering",
+      "rationale": "Docking is the most expensive step - filter hard before it. Each filter's pass/fail and raw value is stored and shown per candidate, never collapsed into a single opaque good/bad flag."
+    },
+    {
+      "id": "docs_architecture_docking_composite_ranking",
+      "label": "Docking & Composite Ranking",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Docking & Composite Ranking",
+      "rationale": "The exact formula must be disclosed in the report and the UI, following the same transparency principle used for LexBook-AI's readiness estimates. Example starting formula: rank_score = 0.5 * normalized_docking_affinity + 0.3 * QED + 0.2 * novelty."
+    },
+    {
+      "id": "docs_architecture_rank_score_formula",
+      "label": "rank_score = 0.5*norm_affinity + 0.3*QED + 0.2*novelty",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Docking & Composite Ranking"
+    },
+    {
+      "id": "docs_architecture_novelty_term",
+      "label": "Novelty = distance from nearest retrieved known compound",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Docking & Composite Ranking"
+    },
+    {
+      "id": "docs_architecture_evaluation_methodology",
+      "label": "Evaluation Methodology",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Evaluation Methodology",
+      "rationale": "Use the field's actual benchmarks, not ad hoc judgment: validity, uniqueness, novelty, internal diversity, MOSES/GuacaMol, retrieval precision, and a DUD-E docking sanity check."
+    },
+    {
+      "id": "docs_architecture_dud_e_sanity_check",
+      "label": "DUD-E Docking Sanity Check",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Evaluation Methodology",
+      "rationale": "Where a benchmark target with known actives/decoys exists, confirm known actives score better than decoys as a sanity check on the docking setup."
+    },
+    {
+      "id": "docs_architecture_dual_use_safety",
+      "label": "Dual-Use Safety Design",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Responsible Use & Dual-Use Safety Design",
+      "rationale": "De novo generation carries real acknowledged dual-use risk. A structural screening pass blocks known toxic-scaffold/controlled-substance analogs rather than merely flagging them; there is no supported path to condition generation toward maximizing toxicity. Load-bearing, not boilerplate."
+    },
+    {
+      "id": "docs_architecture_observability",
+      "label": "Observability and Langfuse Tracing",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Observability"
+    },
+    {
+      "id": "docs_requirements_docking_result_entity",
+      "label": "DockingResult Core Data Entity",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md",
+      "source_location": "Core Data Entities",
+      "rationale": "Per-candidate docking pose, affinity score, composite rank score and its formula version."
+    },
+    {
+      "id": "docs_requirements_transparency",
+      "label": "Transparent Scoring Requirement",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md",
+      "source_location": "Non-Functional Requirements",
+      "rationale": "Every score shown to the user must be traceable to a disclosed formula or a named benchmark metric; no unexplained confidence:87% style outputs."
+    },
+    {
+      "id": "docs_requirements_reproducibility",
+      "label": "Reproducibility Requirement",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md",
+      "source_location": "Non-Functional Requirements",
+      "rationale": "Generation runs record the model checkpoint version and random seed so a result can be regenerated."
+    },
+    {
+      "id": "docs_requirements_safety_not_optional",
+      "label": "Safety Pass Cannot Be Disabled",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md",
+      "source_location": "Non-Functional Requirements"
+    },
+    {
+      "id": "docs_requirements_molecule_detail_view",
+      "label": "Molecule Detail View with 3D Pose Viewer",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md",
+      "source_location": "UI Requirements",
+      "rationale": "Full property breakdown, 3D docking pose viewer, Report Agent rationale, save/export actions."
+    },
+    {
+      "id": "docs_requirements_async_by_design",
+      "label": "Asynchronous by Design",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md",
+      "source_location": "Non-Functional Requirements",
+      "rationale": "No request should block on a diffusion sampling run or a docking job."
+    },
+    {
+      "id": "docs_techstack_autodock_vina",
+      "label": "AutoDock Vina",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md",
+      "source_location": "Docking",
+      "rationale": "Open-source, the default docking engine."
+    },
+    {
+      "id": "docs_techstack_openbabel_mgltools",
+      "label": "Open Babel / MGLTools Prep",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md",
+      "source_location": "Docking",
+      "rationale": "For receptor/ligand file preparation: PDB -> PDBQT conversion, adding hydrogens, assigning charges."
+    },
+    {
+      "id": "docs_techstack_diffdock",
+      "label": "DiffDock (future alternate backend)",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md",
+      "source_location": "Docking",
+      "rationale": "Optional alternate docking backend - the product's second legitimate use of diffusion models (pose prediction, not generation)."
+    },
+    {
+      "id": "docs_techstack_graphdit_backbone",
+      "label": "Graph-DiT via torch-molecule (V4 backbone)",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md",
+      "source_location": "Generative Model Layer",
+      "rationale": "Chosen over EDM-3D because CPU sampling is feasible, MW/logP conditioning is native, and 2D fits both V5 conditioning paths. Chosen over the original DiGress repo because its published checkpoints are dead links."
+    },
+    {
+      "id": "docs_techstack_3dmol_ncl_viewer",
+      "label": "3Dmol.js / NGL Viewer",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md",
+      "source_location": "Frontend"
+    },
+    {
+      "id": "docs_techstack_celery_redis_mandatory",
+      "label": "Celery + Redis Mandatory",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md",
+      "source_location": "Backend",
+      "rationale": "Unlike LexBook-AI where it was optional. Structure extraction, diffusion sampling, and docking are all slow; these must run as background jobs with status polling, not inline in a request/response cycle."
+    },
+    {
+      "id": "claude_md_skill_routing",
+      "label": "Tooling & Skill Routing",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\CLAUDE.md",
+      "source_location": "Tooling & Skill Routing",
+      "rationale": "Routing guidance only - the product workflow is unchanged by anything here. Read the relevant SKILL.md before starting work in its domain; do not guess at a skill's contents from its name."
+    },
+    {
+      "id": "claude_md_elevator_pitch",
+      "label": "Elevator Pitch and Honest Framing",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\CLAUDE.md",
+      "source_location": "Elevator Pitch",
+      "rationale": "Not a claim to discover real drugs - a faithful, benchmark-honest replication of the pattern real computational chemistry teams use, built as a real usable product rather than a research script."
+    },
+    {
+      "id": "readme_current_status_v5",
+      "label": "V5 Status (current HEAD)",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "Status",
+      "rationale": "V5 conditions diffusion on retrieval via seed-graph init, with explicit fallback below 0.3 Tanimoto. Next: V6 Docking & Composite Ranking."
+    },
+    {
+      "id": "readme_known_drugs_corpus",
+      "label": "3,417 ChEMBL Approved Drugs Corpus",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "Knowledge Base (V1)",
+      "rationale": "Chosen because approved drugs are a defensible, citable, target-agnostic retrieval baseline."
+    },
+    {
+      "id": "readme_pdb_id_limitation",
+      "label": "pdb_id Stored-String-Only Limitation",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "Project Intake & Retrieval (V2)",
+      "rationale": "pdb_id is a stored reference string only - no structure fetch, no pocket handling. Full protein structure handling arrives with docking (V6). This is the exact gap V6 closes."
+    },
+    {
+      "id": "readme_v5_measured_knob",
+      "label": "V5 noise_steps Knob Proven but Bounded",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "Retrieval-Augmented Generation (V5)",
+      "rationale": "The knob works (lower k moves outputs closer to the seed, 0.079 -> 0.128) without collapsing diversity, but absolute similarity stays low because QM9 caps at 9 heavy atoms. A ZINC-scale backbone would make the shift dramatic."
+    },
+    {
+      "id": "readme_molecule_table_shared",
+      "label": "MoleculeTable Shared Comparison Table",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "Property Filtering (V3)",
+      "rationale": "Sortable/filterable, generic rows, reused unchanged by V4 and V5 - the V6 ranked table should extend the same component."
+    },
+    {
+      "id": "prompts_v6_docking_ranking",
+      "label": "V6 Build Prompt: Docking & Composite Ranking",
+      "file_type": "rationale",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md",
+      "source_location": "Scope",
+      "rationale": "Fetch and prepare the actual target structure (not just the stored PDB ID), dock as a Celery job, disclose formula + version in API and frontend, render 3D poses, and run a DUD-E sanity check if feasible. Ground rules: no LangGraph (V7), no Report Agent prose (V8), ask before adding a dependency not in tech-stack.md."
+    },
+    {
+      "id": "prompts_v7_orchestration",
+      "label": "V7 Build Prompt: Multi-Agent Orchestration",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v7-multi-agent-orchestration.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "prompts_v8_report",
+      "label": "V8 Build Prompt: Report Agent & Notebook",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v8-report-agent-notebook.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "prompts_v9_vision",
+      "label": "V9 Build Prompt: Vision Agent",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v9-vision-agent-structure-extraction.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "prompts_v1_knowledge_base",
+      "label": "V1 Build Prompt",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v1-molecule-knowledge-base.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "prompts_v2_intake_retrieval",
+      "label": "V2 Build Prompt",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v2-project-intake-retrieval.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "prompts_v3_property_filtering",
+      "label": "V3 Build Prompt",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v3-property-filtering.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "prompts_v4_baseline_generation",
+      "label": "V4 Build Prompt",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v4-baseline-generative-agent.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "prompts_v5_retrieval_augmented",
+      "label": "V5 Build Prompt",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v5-retrieval-augmented-generation.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "prompts_v10_hardening",
+      "label": "V10 Build Prompt",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v10-production-hardening-safety.md",
+      "source_location": "Scope"
+    },
+    {
+      "id": "backend_requirements_docker_compose",
+      "label": "Docker Compose Service Topology",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\docker-compose.yml",
+      "source_location": "services"
+    },
+    {
+      "id": "github_ci_pipeline",
+      "label": "CI Pipeline (backend + frontend)",
+      "file_type": "concept",
+      "source_file": "D:\\Learning\\Molecule-Scout\\.github\\workflows\\ci.yml",
+      "source_location": "jobs"
+    }
+  ],
+  "edges": [
+    {
+      "source": "docs_roadmap_v1_knowledge_base",
+      "target": "docs_roadmap_v0_foundation",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    },
+    {
+      "source": "docs_roadmap_v2_intake_retrieval",
+      "target": "docs_roadmap_v1_knowledge_base",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    },
+    {
+      "source": "docs_roadmap_v3_property_filtering",
+      "target": "docs_roadmap_v2_intake_retrieval",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    },
+    {
+      "source": "docs_roadmap_v4_baseline_generation",
+      "target": "docs_roadmap_v3_property_filtering",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    },
+    {
+      "source": "docs_roadmap_v5_retrieval_augmented_generation",
+      "target": "docs_roadmap_v4_baseline_generation",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "re-run the Version 4 evaluation suite"
+    },
+    {
+      "source": "docs_roadmap_v6_docking_composite_ranking",
+      "target": "docs_roadmap_v5_retrieval_augmented_generation",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    },
+    {
+      "source": "docs_roadmap_v7_multi_agent_orchestration",
+      "target": "docs_roadmap_v6_docking_composite_ranking",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md",
+      "source_location": "wire the individually-working agents (Retrieval, Property, Generation, Docking) from Versions 1-6"
+    },
+    {
+      "source": "docs_roadmap_v8_report_agent",
+      "target": "docs_roadmap_v7_multi_agent_orchestration",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    },
+    {
+      "source": "docs_roadmap_v9_vision_agent",
+      "target": "docs_roadmap_v8_report_agent",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    },
+    {
+      "source": "docs_roadmap_v10_hardening",
+      "target": "docs_roadmap_v9_vision_agent",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    },
+    {
+      "source": "docs_roadmap_version_discipline",
+      "target": "docs_roadmap_v9_vision_agent",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\CLAUDE.md"
+    },
+    {
+      "source": "docs_roadmap_never_cut",
+      "target": "docs_roadmap_v6_docking_composite_ranking",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\CLAUDE.md",
+      "source_location": "docking against a real target"
+    },
+    {
+      "source": "docs_architecture_docking_agent",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_rank_score_formula",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_novelty_term",
+      "target": "docs_architecture_rank_score_formula",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_property_agent",
+      "target": "docs_architecture_property_filtering",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_property_filtering",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Applied to every generated candidate before it proceeds to docking (docking is the most expensive step - filter hard before it)"
+    },
+    {
+      "source": "docs_architecture_generation_agent",
+      "target": "docs_architecture_retmol_conditioning",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_retmol_conditioning",
+      "target": "docs_architecture_retrieval_agent",
+      "relation": "shares_data_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_weak_retrieval_fallback",
+      "target": "docs_architecture_retmol_conditioning",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_vision_agent",
+      "target": "docs_architecture_vision_pipeline",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_coordinator",
+      "target": "docs_architecture_langgraph_workflow",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_langgraph_workflow",
+      "target": "docs_architecture_docking_agent",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_langgraph_workflow",
+      "target": "docs_architecture_safety_agent",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_safety_agent",
+      "target": "docs_architecture_dual_use_safety",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_evaluation_agent",
+      "target": "docs_architecture_evaluation_methodology",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_dud_e_sanity_check",
+      "target": "docs_architecture_evaluation_methodology",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_dud_e_sanity_check",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_observability",
+      "target": "docs_architecture_langgraph_workflow",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_architecture_report_agent",
+      "target": "docs_architecture_dual_use_safety",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "Human-in-the-loop framing"
+    },
+    {
+      "source": "docs_architecture_memory_agent",
+      "target": "docs_architecture_report_agent",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md"
+    },
+    {
+      "source": "docs_requirements_docking_result_entity",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md"
+    },
+    {
+      "source": "docs_requirements_transparency",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md"
+    },
+    {
+      "source": "docs_requirements_safety_not_optional",
+      "target": "docs_architecture_dual_use_safety",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md"
+    },
+    {
+      "source": "docs_requirements_molecule_detail_view",
+      "target": "docs_requirements_docking_result_entity",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md"
+    },
+    {
+      "source": "docs_requirements_async_by_design",
+      "target": "docs_techstack_celery_redis_mandatory",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md"
+    },
+    {
+      "source": "docs_requirements_reproducibility",
+      "target": "readme_current_status_v5",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\requirements.md"
+    },
+    {
+      "source": "docs_techstack_autodock_vina",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md"
+    },
+    {
+      "source": "docs_techstack_openbabel_mgltools",
+      "target": "docs_techstack_autodock_vina",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md"
+    },
+    {
+      "source": "docs_techstack_diffdock",
+      "target": "docs_techstack_autodock_vina",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md"
+    },
+    {
+      "source": "docs_techstack_3dmol_ncl_viewer",
+      "target": "docs_requirements_molecule_detail_view",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md"
+    },
+    {
+      "source": "docs_techstack_graphdit_backbone",
+      "target": "docs_architecture_retmol_conditioning",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md"
+    },
+    {
+      "source": "docs_techstack_celery_redis_mandatory",
+      "target": "docs_architecture_docking_agent",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\tech-stack.md"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_roadmap_v6_docking_composite_ranking",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md",
+      "source_location": "as scoped in docs/roadmap.md"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md",
+      "source_location": "Re-read the Docking & Composite Ranking section in docs/architecture.md"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_techstack_autodock_vina",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "readme_pdb_id_limitation",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md",
+      "source_location": "this needs real target protein structures now, not just the PDB ID reference stored since Version 2"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_architecture_dud_e_sanity_check",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_requirements_transparency",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md",
+      "source_location": "disclose the exact formula and formula version in both the API response and the frontend - never show a rank score without it"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_techstack_3dmol_ncl_viewer",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_requirements_async_by_design",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md",
+      "source_location": "docking is slow - do not run it inline"
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_roadmap_v7_multi_agent_orchestration",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md",
+      "source_location": "No LangGraph orchestration yet - Version 7."
+    },
+    {
+      "source": "prompts_v6_docking_ranking",
+      "target": "docs_roadmap_v8_report_agent",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md",
+      "source_location": "No Report Agent narrative yet - Version 8"
+    },
+    {
+      "source": "prompts_v7_orchestration",
+      "target": "docs_roadmap_v7_multi_agent_orchestration",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v7-multi-agent-orchestration.md"
+    },
+    {
+      "source": "prompts_v7_orchestration",
+      "target": "docs_architecture_langgraph_workflow",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v7-multi-agent-orchestration.md"
+    },
+    {
+      "source": "prompts_v7_orchestration",
+      "target": "docs_architecture_observability",
+      "relation": "cites",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v7-multi-agent-orchestration.md"
+    },
+    {
+      "source": "prompts_v8_report",
+      "target": "docs_roadmap_v8_report_agent",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v8-report-agent-notebook.md"
+    },
+    {
+      "source": "prompts_v8_report",
+      "target": "docs_architecture_report_agent",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v8-report-agent-notebook.md"
+    },
+    {
+      "source": "prompts_v8_report",
+      "target": "docs_architecture_dual_use_safety",
+      "relation": "cites",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v8-report-agent-notebook.md"
+    },
+    {
+      "source": "prompts_v9_vision",
+      "target": "docs_roadmap_v9_vision_agent",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v9-vision-agent-structure-extraction.md"
+    },
+    {
+      "source": "prompts_v9_vision",
+      "target": "docs_architecture_vision_pipeline",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v9-vision-agent-structure-extraction.md"
+    },
+    {
+      "source": "prompts_v1_knowledge_base",
+      "target": "docs_roadmap_v1_knowledge_base",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v1-molecule-knowledge-base.md"
+    },
+    {
+      "source": "prompts_v1_knowledge_base",
+      "target": "readme_known_drugs_corpus",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v1-molecule-knowledge-base.md"
+    },
+    {
+      "source": "prompts_v2_intake_retrieval",
+      "target": "docs_roadmap_v2_intake_retrieval",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v2-project-intake-retrieval.md"
+    },
+    {
+      "source": "prompts_v3_property_filtering",
+      "target": "docs_roadmap_v3_property_filtering",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v3-property-filtering.md"
+    },
+    {
+      "source": "prompts_v3_property_filtering",
+      "target": "docs_architecture_property_filtering",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v3-property-filtering.md"
+    },
+    {
+      "source": "prompts_v4_baseline_generation",
+      "target": "docs_roadmap_v4_baseline_generation",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v4-baseline-generative-agent.md"
+    },
+    {
+      "source": "prompts_v4_baseline_generation",
+      "target": "docs_techstack_graphdit_backbone",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v4-baseline-generative-agent.md"
+    },
+    {
+      "source": "prompts_v5_retrieval_augmented",
+      "target": "docs_roadmap_v5_retrieval_augmented_generation",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v5-retrieval-augmented-generation.md"
+    },
+    {
+      "source": "prompts_v5_retrieval_augmented",
+      "target": "docs_architecture_retmol_conditioning",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v5-retrieval-augmented-generation.md"
+    },
+    {
+      "source": "prompts_v5_retrieval_augmented",
+      "target": "readme_v5_measured_knob",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v5-retrieval-augmented-generation.md"
+    },
+    {
+      "source": "prompts_v10_hardening",
+      "target": "docs_roadmap_v10_hardening",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v10-production-hardening-safety.md"
+    },
+    {
+      "source": "prompts_v10_hardening",
+      "target": "docs_architecture_safety_agent",
+      "relation": "cites",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v10-production-hardening-safety.md"
+    },
+    {
+      "source": "readme_current_status_v5",
+      "target": "docs_roadmap_v6_docking_composite_ranking",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "Next: V6 - Docking & Composite Ranking"
+    },
+    {
+      "source": "readme_known_drugs_corpus",
+      "target": "docs_roadmap_v1_knowledge_base",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md"
+    },
+    {
+      "source": "readme_pdb_id_limitation",
+      "target": "docs_roadmap_v2_intake_retrieval",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md"
+    },
+    {
+      "source": "readme_pdb_id_limitation",
+      "target": "docs_roadmap_v6_docking_composite_ranking",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "Full protein structure handling arrives with docking (V6)."
+    },
+    {
+      "source": "readme_v5_measured_knob",
+      "target": "docs_architecture_retmol_conditioning",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md"
+    },
+    {
+      "source": "readme_v5_measured_knob",
+      "target": "docs_techstack_graphdit_backbone",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "A larger backbone (ZINC-scale, V4-future) is what would make the shift dramatic."
+    },
+    {
+      "source": "readme_molecule_table_shared",
+      "target": "docs_roadmap_v6_docking_composite_ranking",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "D:\\Learning\\Molecule-Scout\\README.md",
+      "source_location": "the V6 ranked table should extend the same component"
+    },
+    {
+      "source": "claude_md_elevator_pitch",
+      "target": "docs_architecture_docking_composite_ranking",
+      "relation": "rationale_for",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\Learning\\Molecule-Scout\\CLAUDE.md"
+    },
+    {
+      "source": "claude_md_skill_routing",
+      "target": "docs_roadmap_never_cut",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.65,
+      "source_file": "D:\\Learning\\Molecule-Scout\\CLAUDE.md"
+    },
+    {
+      "source": "github_ci_pipeline",
+      "target": "backend_requirements_docker_compose",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "D:\\Learning\\Molecule-Scout\\.github\\workflows\\ci.yml"
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "core_loop_agents",
+      "label": "Core Retrieval-to-Report Loop Agents",
+      "nodes": [
+        "docs_architecture_retrieval_agent",
+        "docs_architecture_generation_agent",
+        "docs_architecture_property_agent",
+        "docs_architecture_docking_agent",
+        "docs_architecture_report_agent"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\architecture.md",
+      "source_location": "LangGraph Workflow - Core Stages"
+    },
+    {
+      "id": "v6_deliverable_set",
+      "label": "V6 Deliverable Set",
+      "nodes": [
+        "docs_techstack_autodock_vina",
+        "docs_techstack_openbabel_mgltools",
+        "docs_architecture_rank_score_formula",
+        "docs_techstack_3dmol_ncl_viewer",
+        "docs_architecture_dud_e_sanity_check",
+        "docs_requirements_docking_result_entity"
+      ],
+      "relation": "form",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "D:\\Learning\\Molecule-Scout\\prompts\\v6-docking-ranking.md"
+    },
+    {
+      "id": "future_versions_chain",
+      "label": "Post-V6 Version Chain",
+      "nodes": [
+        "docs_roadmap_v7_multi_agent_orchestration",
+        "docs_roadmap_v8_report_agent",
+        "docs_roadmap_v9_vision_agent",
+        "docs_roadmap_v10_hardening"
+      ],
+      "relation": "participate_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "D:\\Learning\\Molecule-Scout\\docs\\roadmap.md"
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

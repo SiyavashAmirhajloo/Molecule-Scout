@@ -9,7 +9,7 @@ a ranked, explained shortlist. Built as a real product (FastAPI + Celery + pgvec
 + Next.js + LangGraph), not a notebook. **Generated molecules are not validated drug
 candidates** — output is a triage aid requiring human/wet-lab verification.
 
-## Status — V5 Retrieval-Augmented Generation ✓
+## Status — V6 Docking & Composite Ranking ✓
 
 V4 proved diffusion generation with baselines. V5 conditions it on retrieval:
 seed-graph init (denoise from the top retrieved molecule's noised graph) via
@@ -156,6 +156,31 @@ can't get structurally close to a drug-sized seed like aspirin. The mechanism is
 proven; its visible effect is bounded by the backbone's molecule size. A larger
 backbone (ZINC-scale, V4-future) is what would make the shift dramatic.
 
+## Docking & Composite Ranking (V6) ✓
+
+Turns generated, filtered candidates into ranked, actionable results.
+
+- **AutoDock Vina 1.2.7** — official release binary provisioned by `backend/scripts/fetch_vina.py`
+  (pinned SHA-256 per platform, idempotent; pip `vina` package unused).
+- **Meeko PDBQT prep** — maintained MGLTools successor, pip-installable, handles
+  altloc residues via `--default_altloc`; verified on EGFR 1M17.
+- **Composite rank score** — `rank_score = 0.5 * norm_affinity + 0.3 * QED + 0.2 * novelty`
+  (`formula_version="v6-1"`); disclosed in API, UI, and persisted rows.
+- **3D pose viewer** — 3Dmol.js via pinned CDN + SRI; single ligand pose + optional receptor.
+- **DUD-E EGFR smoke test** — 15 actives + 30 decoys via the product path on 1M17.
+  *Result: AUC 0.622 (CI [0.445, 0.787]) — see `python scripts/dock_sanity.py`.
+  The gate is 0.7; CI crosses 0.7 so the setup is borderline. EF@1 hit 1/1 (max 3.0),
+  EF@5 3/5 (max 3.0). A fail here signals a setup check, not a broken product.*
+
+**Limitations:**
+- `rank_score` is **batch-relative** (min-max normalized per run; never across projects).
+- A batch of one always gets norm = 1.0 (a free 0.5 of rank score).
+- Co-crystal-ligand-only pocket: targets without a ligand 422 rather than guess.
+- Altloc residues resolved to **conformer A** (1M17 has A:751/A:831).
+- Fixed 20Å box — Vina convention; small ligands get a needlessly large search space.
+- DUD-E result is a smoke test at non-DUD-E prevalence (~1:4), not a benchmark.
+- DiffDock = post-V10.
+
 ## Quick Start
 
 Prerequisites: Docker + Docker Compose.
@@ -210,8 +235,7 @@ prompts/                    # version-scoped build prompts (V1–V10)
 | V2 | Project Intake & Retrieval | Retrieval Agent with citations |
 | V3 | Property Filtering | QED/SA/Lipinski/PAINS |
 | V4 | Baseline Generation | Diffusion backbone, background jobs, MOSES/GuacaMol metrics |
-| V5 | Retrieval-Augmented Generation | RetMol-style conditioning |
-| V6 | Docking & Ranking | AutoDock Vina, composite score |
+| V5 | Retrieval-Augmented Generation | RetMol-style conditioning || **V6** | Docking & Ranking | AutoDock Vina, composite score, 3D pose viewer |
 | V7 | Multi-Agent Orchestration | LangGraph + Langfuse |
 | V8 | Report & Notebook | LLM rationales, shortlist, exports |
 | V9 | Vision Agent | Literature structure extraction (highest-risk, last) |

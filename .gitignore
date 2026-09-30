@@ -55,6 +55,7 @@ yarn-error.log*
 out/
 dist/
 build/
+*.tsbuildinfo
 
 # IDE & Editor
 .vscode/
@@ -83,6 +84,9 @@ coverage.xml
 celerybeat-schedule
 dump.rdb
 *.log
+
+# AutoDock Vina binary — provisioned by backend/scripts/fetch_vina.py
+backend/bin/
 
 # Database & Storage
 *.db

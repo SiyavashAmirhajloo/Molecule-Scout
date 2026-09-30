@@ -1,0 +1,6 @@
+D:\Learning\Molecule-Scout\prompts\v1-molecule-knowledge-base.md
+D:\Learning\Molecule-Scout\prompts\v10-production-hardening-safety.md
+D:\Learning\Molecule-Scout\prompts\v2-project-intake-retrieval.md
+D:\Learning\Molecule-Scout\prompts\v3-property-filtering.md
+D:\Learning\Molecule-Scout\prompts\v4-baseline-generative-agent.md
+D:\Learning\Molecule-Scout\prompts\v5-retrieval-augmented-generation.md
