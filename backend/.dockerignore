@@ -1,0 +1,9 @@
+# Vina binary is provisioned inside the image by scripts/fetch_vina.py — a
+# host copy (especially a Windows .exe) must never be copied in.
+bin/
+models/
+tests/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/

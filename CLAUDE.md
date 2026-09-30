@@ -93,6 +93,101 @@ All of this is orchestrated through a LangGraph multi-agent workflow,
 with slow steps (structure extraction, generation, docking) running as
 background jobs so the product stays responsive.
 
+## Tooling & Skill Routing
+
+This section governs which skills, commands, and tools to use for each kind of work in this repository. It is routing guidance only — the product workflow above is unchanged by anything here.
+
+Read the relevant `SKILL.md` before starting work in its domain. Do not guess at a skill's contents from its name.
+
+### Project skills (`.claude/skills/`)
+
+Use these for design and front-end work:
+
+| Skill | Use it for |
+|---|---|
+| `design-system` | Design tokens, component specs, and slide-system conventions. Read before introducing a new component or color/typography scale. |
+| `design` | Logo, icon, banner, and CIP (creative-intelligence-prompt) style guidance. |
+| `brand` | Brand guidelines, color-palette management, asset organization, consistency checks. |
+| `ui-styling` | Tailwind/CSS styling and canvas design-system conventions. |
+| `ui-ux-pro-max` | Stack-specific UI/UX patterns, charts, motion, landing pages, React performance. |
+| `slides` | Slide-deck authoring and slide background/chart/copy logic. |
+| `banner-design` | Banner sizing and styles. |
+
+### Project skills (`.agents/skills/`)
+
+| Skill | Use it for |
+|---|---|
+| `frontend-design` | Distinctive, non-templated visual direction for new or reworked UI. Read before writing any UI. |
+| `senior-frontend` | Next.js/React performance, component scaffolding, bundle analysis. |
+| `vercel-react-best-practices` | React correctness rules (effects, dependency arrays, async patterns). Read before changing hooks or data fetching. |
+| `web-design-guidelines` | Web accessibility and interaction guidelines. |
+| `sqlalchemy-alembic-expert-best-practices-code-review` | Reviewing schema changes, migrations, indexes, and constraints. |
+
+### Project skills (`.shared/`)
+
+| Skill | Use it for |
+|---|---|
+| `python-backend` | FastAPI, JWT/OAuth2, SQLAlchemy async, Redis/Upstash caching, rate limiting, API patterns. Read `SKILL.md` and its `references/` directly. |
+| `ty-skills` | Python type checking with `ty`, type annotations, `pyproject.toml` type config, editor setup. |
+| `commit-message` | Analyze git changes and generate Conventional Commits; use before committing. |
+| `excalidraw-ai` | Generate architecture diagrams, flowcharts, and data-flow visuals as Excalidraw JSON directly (no generator script required — see `SKILL.md`). |
+
+### Project commands (`.claude/commands/`)
+
+| Command | Purpose |
+|---|---|
+| `/kb-search <query>` | Search the `python-backend` knowledge base. **Broken as of 2026-09-23:** `.shared/python-backend/scripts/knowledge_db.py` does not exist on disk. Read `.shared/python-backend/SKILL.md` and `references/` directly until the script is restored. |
+| `/kb-get <entry-id>` | Read a full knowledge-base entry. **Broken as of 2026-09-23:** same missing script as `/kb-search`. |
+| `/commit-batch` | Suggest logical batch commits for current changes. |
+| `/commit-analyze` | Analyze the current diff. |
+| `/excalidraw <description>` | Generate an Excalidraw diagram. The command references `excalidraw_generator.py`, which does not exist on disk; follow `.shared/excalidraw-ai/SKILL.md` (JSON-direct method) instead. |
+| `/ty-check [path]` | Scan and fix Python type errors with `ty`. |
+
+### Host tools and connectors
+
+These are provided by the host environment, not by this repository. Use them when the task calls for it:
+
+| Tool | Use it for |
+|---|---|
+| `mcp__exa__web_search_exa` | Web/literature search when building the retrieval corpus or sourcing references. |
+| `mcp__colab-mcp__*` | Running GPU code in Colab (diffusion-model training, vision-pipeline experiments). |
+| `Read`, `Edit`, `Write`, `Glob`, `grep` | Direct file access and search across the repo. |
+| `Bash` | Shell commands. Project commands use `python3` on POSIX or `.venv\Scripts\python` on Windows. |
+| `mcp__workspace__bash` | Isolated Linux sandbox; project folder mounts at `/sessions/<session>/mnt/Molecule-Scout`. |
+| `mcp__workspace__web_fetch` | Fetch a specific URL. |
+| `TaskCreate` / `TaskUpdate` / `TaskList` / `TaskGet` | Track multi-step work. |
+| `Agent` | Delegate open-ended exploration; include full context in the prompt. |
+| `WebSearch` | Current or post-cutoff information. |
+| `mcp__plugins__*` | Discover and suggest plugins for task-specific connectors. |
+| `mcp__skills__*` | List or suggest standalone skills. |
+| `mcp__cowork__*` | Directory access, file presentation, artifacts, and memory. |
+| `mcp__scheduled-tasks__*` | Create/update recurring or one-time scheduled tasks. |
+
+### Skills available in this session but not project-specific
+
+These load automatically via the `Skill` tool by name. Invoke them when the task calls for it:
+
+| Skill | Use it for |
+|---|---|
+| `anthropic-skills:docx` | Creating, reading, or editing Word documents. |
+| `anthropic-skills:pdf` | Any PDF work: reading, creating, merging, OCR, forms. |
+| `anthropic-skills:pdf-reading` | Extracting text, tables, or images from PDFs. |
+| `anthropic-skills:xlsx` | Spreadsheet work as the primary input or output. |
+| `anthropic-skills:pptx` | PowerPoint creation, editing, or reading. |
+| `anthropic-skills:frontend-design` | Intentional visual design guidance for new UI. |
+| `anthropic-skills:schedule` | Creating or updating scheduled tasks. |
+| `anthropic-skills:setup-claude` | Guided plugin/skill/tool setup. |
+| `anthropic-skills:consolidate-memory` | Reflective pass over memory files. |
+| `anthropic-skills:explain-usage` | Token usage breakdown with a chart. |
+| `init` | Initializing a new `CLAUDE.md`. |
+| `security-review` | Security review of pending changes. |
+
+### Skills and plugins inventory note
+
+These lists reflect the inventory as of the last audit (2026-09-23), read from the files actually on disk. When a skill's `SKILL.md` is missing, unreadable, or conflicts with this table, the file on disk wins.
+
+Re-audit when a skill or plugin is installed or removed, and when the user asks for a skills audit or a config/CLAUDE.md refresh.
+
 ## How to Use These Docs
 
 - `docs/tech-stack.md` — mandated technology choices, by layer,
@@ -138,8 +233,8 @@ pocket-conditioned generation (DiffSBDD/TargetDiff-style — a strong
 (DiffDock) as anything but an optional alternate backend, multi-tenant
 SaaS, mobile app, wet-lab integration of any kind.
 
-Things never to cut: RDKit-based property filtering, docking against a
-real target, retrieval with real citations back to source compounds,
+Things never to cut: RDKit-based property filtering, docking against
+a real target, retrieval with real citations back to source compounds,
 transparent/disclosed scoring (no black-box "trust me" scores), the
 dual-use safety screening pass described in `docs/architecture.md`,
 and an honest README that never implies a generated molecule has been

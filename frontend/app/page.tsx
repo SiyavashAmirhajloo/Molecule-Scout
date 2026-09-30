@@ -2,6 +2,32 @@
 
 import { useEffect, useState } from "react";
 import MoleculeTable, { MoleculeRow } from "./components/MoleculeTable";
+import PoseViewer from "./components/PoseViewer";
+
+type DockRow = {
+  id: number;
+  smiles: string;
+  affinity: number | null;
+  qed: number | null;
+  novelty: number | null;
+  rank_score: number | null;
+  properties: MoleculeRow["properties"];
+};
+
+type DockingResult = {
+  ranked: DockRow[];
+  formula: string;
+  formula_version: string;
+  receptor: { pdb_id: string; center: number[] };
+};
+
+type DockingDetail = {
+  id: number;
+  smiles: string;
+  affinity: number | null;
+  formula_version: string;
+  pose_pdbqt: string | null;
+};
 
 type Health = { db: string; redis: string };
 type Hit = MoleculeRow & {
@@ -51,6 +77,62 @@ export default function Home() {
   const [genStatus, setGenStatus] = useState<string | null>(null);
   const [genResult, setGenResult] = useState<GenerationResult | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  // Docking state for the generation section.
+  const [dockJobId, setDockJobId] = useState<string | null>(null);
+  const [dockStatus, setDockStatus] = useState<string | null>(null);
+  const [dockResult, setDockResult] = useState<DockingResult | null>(null);
+  const [dockError, setDockError] = useState<string | null>(null);
+  const [selectedPose, setSelectedPose] = useState<DockingDetail | null>(null);
+
+  // Dock N generated candidates by index. Defined at component scope so the
+  // list view above and the generate view below can share it.
+  async function dockResultsList(
+    projectId: number,
+    rows: GeneratedCandidate[],
+    limit = 20,
+  ) {
+    const smiles = Array.from(
+      new Set(rows.map((c) => c.smiles).filter(Boolean)),
+    ).slice(0, limit);
+    setDockError(null);
+    setDockResult(null);
+    setSelectedPose(null);
+    try {
+      const r = await fetch(`${API}/projects/${projectId}/dock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_smiles: smiles }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const { id } = await r.json();
+      setDockJobId(id);
+      setDockStatus("queued");
+      const poll = setInterval(async () => {
+        const s = await fetch(`${API}/jobs/${id}`).then((x) => x.json());
+        setDockStatus(s.status);
+        if (s.status === "success") {
+          clearInterval(poll);
+          setDockResult(s.result as DockingResult);
+        } else if (s.status === "failure") {
+          clearInterval(poll);
+          setDockError(s.error ?? "Docking failed");
+        }
+      }, 2000);
+    } catch (err) {
+      setDockError(err instanceof Error ? err.message : "Request failed");
+    }
+  }
+
+  async function openPose(projectId: number, dockingId: number) {
+    setSelectedPose(null);
+    try {
+      const r = await fetch(`${API}/projects/${projectId}/docking/${dockingId}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setSelectedPose((await r.json()) as DockingDetail);
+    } catch (err) {
+      setDockError(err instanceof Error ? err.message : "Request failed");
+    }
+  }
 
   useEffect(() => {
     fetch(`${API}/health`)
@@ -288,6 +370,58 @@ export default function Home() {
                   }))}
                 />
               </div>
+              {response?.project.pdb_id && response?.project.id && (
+                <button
+                  onClick={() =>
+                    dockResultsList(response.project.id, genResult.candidates)
+                  }
+                  className="mt-4 rounded bg-emerald-600 px-4 py-2 text-sm font-medium"
+                >
+                  Dock against {response.project.pdb_id}
+                </button>
+              )}
+            </div>
+          )}
+          {dockError && (
+            <p className="mt-4 rounded bg-red-950 p-3 text-sm text-red-200">{dockError}</p>
+          )}
+          {dockStatus && dockJobId && (
+            <p className="mt-3 pb-2 font-mono text-sm text-zinc-400">
+              {dockJobId.slice(0, 8)}… · {dockStatus}
+            </p>
+          )}
+          {dockResult && response?.project.id && (
+            <div className="mt-4">
+              <p className="font-mono text-sm text-zinc-400">
+                {dockResult.ranked.length} candidates · receptor{" "}
+                {dockResult.receptor.pdb_id} · {dockResult.formula_version}
+              </p>
+              <div className="mt-3">
+                <MoleculeTable
+                  rows={dockResult.ranked.map((r) => ({
+                    canonical_smiles: r.smiles,
+                    name: null,
+                    properties: r.properties,
+                    docking_id: r.id,
+                    affinity: r.affinity,
+                    novelty: r.novelty,
+                    rank_score: r.rank_score,
+                  }))}
+                  onSelect={(dockingId) =>
+                    openPose(response.project.id, dockingId)
+                  }
+                />
+              </div>
+              {selectedPose?.pose_pdbqt && (
+                <div className="mt-4 rounded-lg bg-zinc-900 p-4">
+                  <p className="mb-2 font-mono text-xs text-zinc-400">
+                    Pose for <code>{selectedPose.smiles}</code>
+                    {selectedPose.affinity !== null &&
+                      ` · ${selectedPose.affinity.toFixed(2)} kcal/mol · score ${dockResult.formula_version}`}
+                  </p>
+                  <PoseViewer posePdbqt={selectedPose.pose_pdbqt} />
+                </div>
+              )}
             </div>
           )}
         </section>

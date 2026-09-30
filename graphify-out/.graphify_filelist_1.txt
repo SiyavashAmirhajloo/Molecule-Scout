@@ -1,0 +1,8 @@
+D:\Learning\Molecule-Scout\.claude\CLAUDE.md
+D:\Learning\Molecule-Scout\.claude\commands\commit-analyze.md
+D:\Learning\Molecule-Scout\.claude\commands\commit-batch.md
+D:\Learning\Molecule-Scout\.claude\commands\excalidraw.md
+D:\Learning\Molecule-Scout\.claude\commands\kb-get.md
+D:\Learning\Molecule-Scout\.claude\commands\kb-search.md
+D:\Learning\Molecule-Scout\.claude\commands\ty-check.md
+D:\Learning\Molecule-Scout\.github\workflows\ci.yml

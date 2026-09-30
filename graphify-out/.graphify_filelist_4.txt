@@ -1,0 +1,4 @@
+D:\Learning\Molecule-Scout\prompts\v6-docking-ranking.md
+D:\Learning\Molecule-Scout\prompts\v7-multi-agent-orchestration.md
+D:\Learning\Molecule-Scout\prompts\v8-report-agent-notebook.md
+D:\Learning\Molecule-Scout\prompts\v9-vision-agent-structure-extraction.md

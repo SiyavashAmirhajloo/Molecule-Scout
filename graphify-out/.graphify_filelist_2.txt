@@ -1,0 +1,8 @@
+D:\Learning\Molecule-Scout\CLAUDE.md
+D:\Learning\Molecule-Scout\README.md
+D:\Learning\Molecule-Scout\backend\requirements.txt
+D:\Learning\Molecule-Scout\docker-compose.yml
+D:\Learning\Molecule-Scout\docs\architecture.md
+D:\Learning\Molecule-Scout\docs\requirements.md
+D:\Learning\Molecule-Scout\docs\roadmap.md
+D:\Learning\Molecule-Scout\docs\tech-stack.md

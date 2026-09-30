@@ -22,9 +22,24 @@ export type MoleculeRow = {
   similarity?: number;
   citation?: { entry_id: string | null; url: string };
   properties: Properties;
+  /** V6 docking fields — present only on rows from a docking run. */
+  docking_id?: number;
+  affinity?: number | null;
+  novelty?: number | null;
+  rank_score?: number | null;
 };
 
-type SortKey = "similarity" | "qed" | "sa_score" | "molecular_weight" | "logp";
+export const RANK_FORMULA =
+  "rank_score = 0.5 * norm_affinity + 0.3 * QED + 0.2 * novelty";
+
+type SortKey =
+  | "similarity"
+  | "qed"
+  | "sa_score"
+  | "molecular_weight"
+  | "logp"
+  | "rank_score"
+  | "affinity";
 
 function cellValue(row: MoleculeRow, key: SortKey): number {
   switch (key) {
@@ -38,6 +53,14 @@ function cellValue(row: MoleculeRow, key: SortKey): number {
       return row.properties.lipinski.molecular_weight;
     case "logp":
       return row.properties.lipinski.logp;
+    case "rank_score":
+      return row.rank_score ?? 0;
+    case "affinity":
+      // Affinities are negative: more negative = better binder. Negate so a
+      // descending sort puts the best binder first. Failed docks sort last.
+      return row.affinity === null || row.affinity === undefined
+        ? Number.NEGATIVE_INFINITY
+        : -row.affinity;
   }
 }
 
@@ -49,8 +72,16 @@ function Pass({ ok }: { ok: boolean }) {
   );
 }
 
-export default function MoleculeTable({ rows }: { rows: MoleculeRow[] }) {
-  const [sortKey, setSortKey] = useState<SortKey>("similarity");
+export default function MoleculeTable({
+  rows,
+  onSelect,
+}: {
+  rows: MoleculeRow[];
+  /** Called with the row's docking result id when the user clicks a docked row. */
+  onSelect?: (dockingId: number) => void;
+}) {
+  const hasRanks = rows.some((r) => r.rank_score !== undefined);
+  const [sortKey, setSortKey] = useState<SortKey>(hasRanks ? "rank_score" : "similarity");
   const [sortDesc, setSortDesc] = useState(true);
   const [minQed, setMinQed] = useState(0);
   const [maxSa, setMaxSa] = useState(10);
@@ -90,6 +121,16 @@ export default function MoleculeTable({ rows }: { rows: MoleculeRow[] }) {
 
   return (
     <div>
+      {hasRanks && (
+        <p className="mb-2 rounded bg-zinc-900 px-3 py-2 text-xs text-zinc-400">
+          Ranked by{" "}
+          <code className="font-mono text-zinc-300">{RANK_FORMULA}</code>.{" "}
+          <span className="text-zinc-500">
+            norm_affinity is min-max normalized within this batch only, so these
+            scores are not comparable across runs.
+          </span>
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-4 rounded-lg bg-zinc-900 p-3 text-sm">
         <label className="flex items-center gap-2 text-zinc-400">
           QED ≥
@@ -139,6 +180,7 @@ export default function MoleculeTable({ rows }: { rows: MoleculeRow[] }) {
       <table className="mt-3 w-full text-left text-sm">
         <thead>
           <tr className="border-b border-zinc-800 text-zinc-400">
+            {hasRanks && <th className="py-2 pr-4">Rank</th>}
             <th className="py-2 pr-4">SMILES</th>
             <th className="py-2 pr-4">Name</th>
             {header("Sim", "similarity")}
@@ -146,17 +188,29 @@ export default function MoleculeTable({ rows }: { rows: MoleculeRow[] }) {
             {header("SA", "sa_score")}
             {header("MW", "molecular_weight")}
             {header("logP", "logp")}
+            {hasRanks && header("Affinity", "affinity")}
+            {hasRanks && header("Score", "rank_score")}
             <th className="py-2 pr-4">Lipinski</th>
             <th className="py-2 pr-4">PAINS</th>
             <th className="py-2">Source</th>
           </tr>
         </thead>
         <tbody>
-          {visible.map((row) => (
+          {visible.map((row, i) => (
             <tr
-              key={row.citation?.entry_id ?? row.canonical_smiles}
-              className="border-b border-zinc-900"
+              key={row.docking_id ?? row.citation?.entry_id ?? row.canonical_smiles}
+              onClick={
+                onSelect && row.docking_id !== undefined
+                  ? () => onSelect(row.docking_id as number)
+                  : undefined
+              }
+              className={`border-b border-zinc-900 ${
+                onSelect && row.docking_id !== undefined
+                  ? "cursor-pointer hover:bg-zinc-900/60"
+                  : ""
+              }`}
             >
+              {hasRanks && <td className="py-2 pr-4 font-mono">{i + 1}</td>}
               <td className="max-w-[12rem] truncate py-2 pr-4 font-mono text-xs">
                 {row.canonical_smiles}
               </td>
@@ -170,6 +224,20 @@ export default function MoleculeTable({ rows }: { rows: MoleculeRow[] }) {
                 {row.properties.lipinski.molecular_weight.toFixed(1)}
               </td>
               <td className="py-2 pr-4 font-mono">{row.properties.lipinski.logp.toFixed(2)}</td>
+              {hasRanks && (
+                <td className="py-2 pr-4 font-mono">
+                  {row.affinity !== null && row.affinity !== undefined
+                    ? row.affinity.toFixed(2)
+                    : "—"}
+                </td>
+              )}
+              {hasRanks && (
+                <td className="py-2 pr-4 font-mono text-emerald-300">
+                  {row.rank_score !== null && row.rank_score !== undefined
+                    ? row.rank_score.toFixed(3)
+                    : "—"}
+                </td>
+              )}
               <td className="py-2 pr-4">
                 <Pass ok={row.properties.lipinski.passes} />
                 <span className="ml-1 text-xs text-zinc-500">

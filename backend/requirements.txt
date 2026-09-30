@@ -10,6 +10,10 @@ httpx>=0.27
 pytest>=8.0
 aiosqlite>=0.19  # file-based test DB so CI needs no Postgres service
 rdkit>=2024.9
+# Meeko 0.8 pulls in gemmi on some platforms; pin it so receptor prep works
+# in slim images where it is not auto-resolved.
+meeko>=0.8
+gemmi>=0.6
 alembic>=1.14
 torch-molecule>=0.1.7
 --extra-index-url https://download.pytorch.org/whl/cpu

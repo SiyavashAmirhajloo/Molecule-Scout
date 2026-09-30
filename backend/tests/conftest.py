@@ -6,6 +6,7 @@ from app import db
 from app.chem.embeddings import get_embedder
 from app.db import get_session
 from app.main import create_app
+from app.models.docking import DockingResult  # noqa: F401 — ensure table is registered
 from app.models.molecule import Base, KnownMolecule
 from app.models.project import Project  # noqa: F401 — ensure table is registered
 

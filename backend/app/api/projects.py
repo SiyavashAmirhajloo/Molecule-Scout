@@ -21,7 +21,6 @@ class ProjectCreate(BaseModel):
     seed_name: str | None = None
     limit: int = 10
 
-
 class RetrievalHit(BaseModel):
     canonical_smiles: str
     chembl_id: str | None
@@ -54,6 +53,14 @@ async def create_project(
         raise HTTPException(422, "Provide pdb_id and/or a seed molecule (seed_smiles or seed_name)")
     if body.seed_smiles and body.seed_name:
         raise HTTPException(422, "Provide seed_smiles or seed_name, not both")
+    if body.pdb_id:
+        # Never persist an ID that will later be a cache filename and a URL.
+        from app.docking import _validate_pdb_id
+
+        try:
+            _validate_pdb_id(body.pdb_id)
+        except ValueError as e:
+            raise HTTPException(422, str(e))
     resolved = await resolve_seed(session, body.seed_smiles, body.seed_name)
     project = Project(
         pdb_id=body.pdb_id,
@@ -99,6 +106,12 @@ class ProjectGenerateRequest(BaseModel):
     seed: int | None = None
 
 
+class ProjectDockRequest(BaseModel):
+    # Docking is hours of CPU per candidate; an unbounded batch is a DoS on our
+    # own worker. Per-user rate limiting is V10.
+    candidate_smiles: list[str] = Field(min_length=1, max_length=50)
+
+
 @router.post("/{project_id}/generate")
 async def generate_from_project(
     project_id: int,
@@ -137,3 +150,89 @@ async def generate_from_project(
         body.n, None, None, body.seed, seed_smiles, body.noise_steps, conditioning
     )
     return {"id": result.id, "status": "queued", "conditioning": conditioning}
+
+
+@router.post("/{project_id}/dock")
+async def dock_candidates(
+    project_id: int,
+    body: ProjectDockRequest,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    from sqlalchemy import select
+
+    from app.docking import ReceptorFetchError, UnknownPDBError, inspect_receptor
+
+    project = (
+        await session.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(404, "Project not found")
+    if not project.pdb_id:
+        raise HTTPException(422, "Project has no target — set pdb_id first")
+    for smi in body.candidate_smiles:
+        if parse_smiles(smi) is None:
+            raise HTTPException(422, f"Invalid SMILES: {smi!r}")
+    # Pre-check only: no Meeko prep, no PDBQT write — that belongs in the worker.
+    try:
+        inspect_receptor(project.pdb_id)
+    except UnknownPDBError as e:
+        raise HTTPException(422, str(e))
+    except ReceptorFetchError as e:
+        raise HTTPException(502, str(e))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    result = tasks.dock_molecules.delay(
+        project_id, project.pdb_id, body.candidate_smiles
+    )
+    return {"id": result.id, "status": "queued"}
+
+
+class DockingDetailOut(BaseModel):
+    id: int
+    smiles: str
+    affinity: float | None
+    qed: float | None
+    novelty: float | None
+    rank_score: float | None
+    formula: str
+    formula_version: str
+    pose_pdbqt: str | None
+    receptor_pdb_id: str | None
+    box_center: list[float]
+
+
+@router.get("/{project_id}/docking/{result_id}", response_model=DockingDetailOut)
+async def docking_detail(
+    project_id: int, result_id: int, session: AsyncSession = Depends(get_session)
+) -> DockingDetailOut:
+    from sqlalchemy import select
+
+    from app.docking import FORMULA
+    from app.models.docking import DockingResult
+
+    row = (
+        await session.execute(
+            select(DockingResult).where(
+                DockingResult.id == result_id, DockingResult.project_id == project_id
+            )
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(404, "Docking result not found")
+    return DockingDetailOut(
+        id=row.id,
+        smiles=row.candidate_smiles,
+        affinity=row.affinity,
+        qed=row.qed,
+        novelty=row.novelty,
+        rank_score=row.rank_score,
+        formula=FORMULA,
+        formula_version=row.formula_version,
+        pose_pdbqt=row.pose_pdbqt,
+        receptor_pdb_id=row.receptor_pdb_id,
+        box_center=[
+            row.box_center_x or 0.0,
+            row.box_center_y or 0.0,
+            row.box_center_z or 0.0,
+        ],
+    )
