@@ -224,8 +224,9 @@ def prepare_receptor(pdb_id: str, center: tuple[float, float, float]) -> Path:
 def prep_ligand(smiles: str) -> str | None:
     """SMILES -> PDBQT string via RDKit ETKDG + Meeko. None if unpreppable.
 
-    Oversized molecules return None rather than attempting an embed that can
-    hang the worker — they are logged and excluded from ranking upstream.
+    Returns None (never raises) for anything Vina can't take: oversized,
+    unparseable, unembeddable, or multi-fragment after stripping. Callers
+    exclude these and keep going — one bad molecule must not fail a batch.
     """
     from meeko import MoleculePreparation, PDBQTWriterLegacy
     from rdkit import Chem
@@ -234,6 +235,11 @@ def prep_ligand(smiles: str) -> str | None:
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return None
+    # Salts ("Cl.Na") and dotted diffusion output are multi-fragment, which
+    # Meeko rejects outright. Keep the largest fragment — the parent drug.
+    frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=True)
+    if len(frags) > 1:
+        mol = max(frags, key=lambda m: m.GetNumHeavyAtoms())
     if mol.GetNumHeavyAtoms() > MAX_LIGAND_HEAVY_ATOMS:
         log.warning(
             "ligand has %d heavy atoms (> %d), excluded",
@@ -241,13 +247,13 @@ def prep_ligand(smiles: str) -> str | None:
             MAX_LIGAND_HEAVY_ATOMS,
         )
         return None
-    mol = Chem.AddHs(mol)
-    if rdDistGeom.EmbedMolecule(mol, rdDistGeom.ETKDGv3()) != 0:
-        return None
-    setups = MoleculePreparation().prepare(mol)
-    if not setups:
-        return None
     try:
+        mol = Chem.AddHs(mol)
+        if rdDistGeom.EmbedMolecule(mol, rdDistGeom.ETKDGv3()) != 0:
+            return None
+        setups = MoleculePreparation().prepare(mol)
+        if not setups:
+            return None
         # Meeko splits preparation from writing: the setup object has no
         # write method, PDBQTWriterLegacy does.
         pdbqt, ok, err = PDBQTWriterLegacy.write_string(setups[0])
@@ -256,7 +262,7 @@ def prep_ligand(smiles: str) -> str | None:
             return None
         return pdbqt
     except Exception as e:
-        log.warning("meeko pdbqt write raised: %s", e)
+        log.warning("ligand prep raised: %s", e)
         return None
 
 

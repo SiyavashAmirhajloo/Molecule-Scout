@@ -18,16 +18,23 @@ docker compose exec api python scripts/ingest_chembl.py   # one-shot: 3,417 appr
 
 Then open **http://localhost:3000** and walk the loop:
 
-1. **Create a project** — PDB ID `1M17` (EGFR), seed `ERLOTINIB` (or any SMILES).
-   You get a retrieval table of ChEMBL analogs with citations and property columns.
-2. **Generate conditioned on these results** — diffusion candidates appear with the
-   V4 metrics line (validity/uniqueness/novelty/diversity) and a conditioning badge
-   showing which retrieved molecule was used, or an honest fallback reason.
-3. **Dock against 1M17** — the candidate table gains Rank / Affinity / Score columns
-   plus a formula banner: `rank_score = 0.5 * norm_affinity + 0.3 * QED + 0.2 * novelty`
-   (`v6-1`). Rows sort by score, descending.
-4. **Click a row** — a 3D pose viewer renders the ligand sticks (3Dmol.js, pinned
-   CDN; if the CDN is unreachable you get a visible error, never a blank box).
+1. **Start a project** — the bench takes a target PDB ID (`1M17` for EGFR) and one
+   seed field that accepts *either* a SMILES or a compound name (`ERLOTINIB`
+   resolves against the ChEMBL corpus). You land on `/projects/{id}`.
+2. **Retrieve** — the first tab lists ChEMBL analogs with similarity, property
+   columns, and working citations.
+3. **Generate** — the second tab runs diffusion conditioned on the top retrieved
+   molecule, showing validity/uniqueness/novelty/diversity and a conditioning
+   badge (or the honest fallback reason when retrieval is weak).
+4. **Dock** — the third tab docks the candidates against 1M17 and adds Rank /
+   Affinity / Score columns plus a formula banner:
+   `rank_score = 0.5 * norm_affinity + 0.3 * QED + 0.2 * novelty` (`v6-1`).
+5. **Click a ranked row** — the *Finding* drawer beside the table opens the 3D
+   pose viewer (3Dmol.js, pinned CDN; a failed load shows a visible error, never
+   a blank box).
+
+The tabs are a pipeline, not three stacked tables: one stage is visible at a
+time, and the connector above shows where you are.
 
 The same flow over curl (docking three known drugs directly, real numbers from
 a live run):
@@ -66,7 +73,7 @@ Docking sanity check (local venv, needs network + `backend/bin/vina`):
 | `docker compose up --build` boots `api` + `worker` + `db` (pgvector) + `redis` + `frontend` | ✓ |
 | `GET /health` reports `{"db": "ok", "redis": "ok"}` | ✓ |
 | `POST /jobs/test` → `GET /jobs/{id}` round-trips via Celery | ✓ |
-| `pytest` — 49 tests, eager Celery, no services needed | ✓ |
+| `pytest` — 51 tests, eager Celery, no services needed | ✓ |
 | `ruff check` clean, `tsc --noEmit` + `next build` clean | ✓ |
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
 | Live E2E: project → generate → dock → ranked table → 3D pose | ✓ |
@@ -99,12 +106,15 @@ curl "localhost:8000/molecules/similar?smiles=CC(%3DO)Oc1ccccc1C(%3DO)O&limit=3"
 
 ## Project Intake & Retrieval (V2) ✓
 
-`POST /projects` with `{pdb_id?, seed_smiles?, seed_name?}` (at least one required;
-seed by SMILES or by local drug name, not both). Retrieval runs inline against the
-V1 store via `backend/app/agents/retrieval.py` (shared with `GET /molecules/similar`)
-and every hit carries `citation: {database: "ChEMBL", entry_id, url}`.
+`POST /projects` with `{pdb_id?, seed_smiles?, seed_name?}` (at least one required).
+Retrieval runs inline against the V1 store via `backend/app/agents/retrieval.py`
+(shared with `GET /molecules/similar`) and every hit carries
+`citation: {database: "ChEMBL", entry_id, url}`.
 
-- Seed by name resolves locally against ingested `pref_name`s; unknown name → 422
+- `seed_smiles` accepts either a SMILES or a compound name — if it doesn't parse
+  as SMILES it is resolved as a name, so the UI needs one field for both
+- Seed by name resolves locally against ingested `pref_name`s (substring match, so
+  `ERLOTINIB` finds `ERLOTINIB HYDROCHLORIDE`); unknown name → 422
   (no external lookup — corpus boundaries stay honest)
 - Target-only (PDB ID, no seed) returns `results: []` with an honest message —
   never fabricated retrieval (V5's generation fallback depends on this distinction)
@@ -245,9 +255,10 @@ docker compose up --build
 docker compose exec api python scripts/ingest_chembl.py   # first time only
 ```
 
-- **Frontend:** http://localhost:3000 (create project → retrieve → generate → dock → pose)
+- **Frontend:** http://localhost:3000 (bench → project pipeline → pose)
 - **API:** http://localhost:8000/docs — `GET /health`, `POST /projects`,
-  `POST /projects/{id}/generate`, `POST /projects/{id}/dock`, `GET /jobs/{id}`
+  `GET /projects/{id}`, `POST /projects/{id}/generate`, `POST /projects/{id}/dock`,
+  `GET /projects/{id}/docking`, `GET /projects/{id}/docking/{resultId}`, `GET /jobs/{id}`
 - **Postgres (pgvector):** `localhost:5432` (`postgres`/`postgres`/`moleculescout`)
 - **Redis:** `localhost:6379`
 
@@ -297,12 +308,14 @@ backend/
     dock_sanity.py           # DUD-E EGFR smoke test
     verify_e2e_live.py       # live-stack E2E verification
   bin/                       # vina binary (gitignored, script-managed)
-  tests/                     # 49 tests incl. docking (Vina mocked in CI)
+  tests/                     # 51 tests incl. docking (Vina mocked in CI)
 frontend/
-  app/page.tsx               # the walkthrough flow: retrieve → generate → dock → pose
+  app/
+    page.tsx                 # landing bench: PDB ID + single seed field
+    projects/[id]/page.tsx   # project bench: time-ordered pipeline (Retrieve → Generate → Dock)
   app/components/
-    MoleculeTable.tsx        # shared comparison table (V3/V4/V5/V6 columns)
-    PoseViewer.tsx           # 3Dmol.js pose viewer (pinned CDN + SRI)
+    MoleculeTable.tsx        # shared comparison table (V3/V4/V5/V6 columns, affinity/score when docked)
+    PoseViewer.tsx           # 3Dmol.js pose viewer (pinned CDN + SRI, renders in the Finding drawer)
 .github/workflows/ci.yml     # backend + frontend jobs
 docs/                        # tech-stack, architecture, requirements, roadmap
 prompts/                     # version-scoped build prompts (V1–V10)
