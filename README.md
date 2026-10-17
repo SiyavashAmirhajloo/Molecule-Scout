@@ -66,21 +66,25 @@ Docking sanity check (local venv, needs network + `backend/bin/vina`):
 # DUD-E EGFR, ~25 min: ROC AUC + bootstrap CI + EF@1/5/10 vs achievable max
 ```
 
-## Status — V6 Docking & Composite Ranking ✓
+## Status — V7 Multi-Agent Orchestration via LangGraph ✓
 
 | Check | Status |
 |---|---|
 | `docker compose up --build` boots `api` + `worker` + `db` (pgvector) + `redis` + `frontend` | ✓ |
 | `GET /health` reports `{"db": "ok", "redis": "ok"}` | ✓ |
 | `POST /jobs/test` → `GET /jobs/{id}` round-trips via Celery | ✓ |
-| `pytest` — 51 tests, eager Celery, no services needed | ✓ |
+| `pytest` — 64 tests, eager Celery, no services needed | ✓ |
 | `ruff check` clean, `tsc --noEmit` + `next build` clean | ✓ |
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
 | Live E2E: project → generate → dock → ranked table → 3D pose | ✓ |
 | DUD-E EGFR smoke: actives enriched at top of ranking (AUC 0.622, CI [0.445, 0.787]) | ✓ (borderline, see below) |
+| LangGraph StateGraph orchestration over core V1–V6 stages | ✓ |
+| Coordinator agent with deterministic route table (4 routes) | ✓ |
+| Property Agent gate before docking (PAINS-free, Lipinski ≤1, QED ≥0.25, SA ≤6.0) | ✓ |
+| Re-entry (`regenerate`, `redock`) skips retrieval without re-running | ✓ |
+| Event-driven resume via Celery `.link`/`.link_error` + atomic CAS double-resume guard | ✓ |
 
-Next: **V7 — Multi-Agent Orchestration** (LangGraph coordinator over the V1–V6
-agents, Langfuse tracing).
+Next: **V8 — Report Agent & Research Notebook** (LLM rationales, shortlists, PDF/SDF export).
 
 ## Knowledge Base (V1) ✓
 
@@ -246,6 +250,125 @@ adjusted to pass.
   novelty 0.0, generated fragments near 1.0.
 - DiffDock alternate backend = post-V10 (roadmap "Future Versions").
 
+## Multi-Agent Orchestration via LangGraph (V7) ✓
+
+Wired the core V1–V6 stages into a real LangGraph `StateGraph` coordinated
+by a Coordinator agent. Instead of separate endpoints called in sequence by the
+frontend, the pipeline is a single resumable workflow with four routes:
+`new_project`, `regenerate`, `redock`, and `full_rerun`.
+
+- **Coordinator agent** — deterministic route table (disclosed below: not an
+  LLM agent; a route table is the right design for pipeline topology).
+- **Core stages as graph nodes** — `coordinator → retrieve → generate →
+  safety_screen → property_filter → dock → done`. Each node wraps the existing
+  V1–V6 logic; no agent logic was rewritten.
+- **Property Agent gate** — candidates are screened against named, disclosed
+  heuristics before docking (the first expensive step):
+  - PAINS-free (`PROPERTY_GATE_PAINS_FREE = True`)
+  - Lipinski Rule of Five: ≤1 violation (`PROPERTY_GATE_LIPINSKI_VIOLATIONS_MAX = 1`)
+  - QED ≥ 0.25 (`PROPERTY_GATE_QED_MIN = 0.25`)
+  - SA score ≤ 6.0 (`PROPERTY_GATE_SA_MAX = 6.0`)
+  Rejected candidates have their exact reason recorded in the trace. If zero
+  candidates pass, the run terminates as an explicit `success` with
+  `terminal_reason: "no_candidates_passed_property_filter"` — never a dock-stage error.
+  An explicit `candidate_smiles` on redock bypasses the numeric gates.
+- **Safety Agent slot** — `safety_screen` is an explicit pass-through node
+  between `generate` and `property_filter`. In V7 it passes every candidate; in
+  V10 the structural screening against toxic-scaffold/controlled-substance
+  analog libraries is inserted there without a pipeline re-plumb.
+- **Event-driven resume** — slow steps (generation, docking) submit their Celery
+  tasks with `.link(resume_pipeline.s(run_id, job_id))` and
+  `.link_error(resume_pipeline.s(run_id, job_id))`. The graph pauses in
+  `waiting` state rather than blocking a request thread. When the job lands,
+  `resume_pipeline` claims the run via an atomic CAS (`UPDATE ... WHERE
+  status='waiting' AND job_id=:j`) and re-invokes the graph. The loser of a race
+  (e.g. `.link` vs GET poll) no-ops silently, guaranteeing the next job is
+  submitted exactly once.
+- **Re-entry without re-retrieval** — `regenerate` and `redock` seed a new run
+  from the latest run of that project. `regenerate` re-enters at `generate`
+  using the prior run's conditioning without re-running retrieval; `redock`
+  re-enters at `property_filter` reusing the prior candidates.
+- **Tracing** — every node appends `{node, event, at, detail}` to the run's
+  trace. When `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are provided, the
+  same trace is mirrored to Langfuse; without keys, the structured trace on the
+  `PipelineRun` record is the sink (CI/local dev safe).
+
+### Two Scenarios Walked (real traces from tests)
+
+**Scenario 1: Full `new_project` run end-to-end**
+
+```bash
+curl -X POST localhost:8000/projects/1/run -H 'Content-Type: application/json' \
+  -d '{"route":"new_project","n":2}'
+# → status: "waiting", current_stage: "generate", job_id: "<celery-job>"
+# Poll GET /projects/1/run/<run_id> → when done:
+```
+
+```json
+{
+  "run_id": 1,
+  "route": "new_project",
+  "status": "success",
+  "current_stage": "done",
+  "trace": [
+    {"node": "coordinator", "event": "exit", "detail": "route=new_project stages=retrieve,generate,property_filter,dock"},
+    {"node": "retrieve", "event": "enter", "detail": null},
+    {"node": "retrieve", "event": "exit", "detail": "1 hits"},
+    {"node": "generate", "event": "enter", "detail": null},
+    {"node": "generate", "event": "job_submitted", "detail": "job=gen-job-1 mode=retrieval-conditioned"},
+    {"node": "generate", "event": "job_resumed", "detail": "2 candidates"},
+    {"node": "safety_screen", "event": "exit", "detail": "pass-through (V10 Safety Agent slot)"},
+    {"node": "property_filter", "event": "enter", "detail": null},
+    {"node": "property_filter", "event": "exit", "detail": "passed=2 rejected=0 bypass=False"},
+    {"node": "dock", "event": "enter", "detail": null},
+    {"node": "dock", "event": "job_submitted", "detail": "job=dock-job-1 n=2"},
+    {"node": "dock", "event": "job_resumed", "detail": "2 ranked"},
+    {"node": "done", "event": "success", "detail": null}
+  ]
+}
+```
+
+**Scenario 2: "Regenerate candidates" re-enters without re-running retrieval**
+
+```bash
+curl -X POST localhost:8000/projects/1/run -H 'Content-Type: application/json' \
+  -d '{"route":"regenerate","n":2}'
+# → retrieval is SKIPPED; graph re-enters directly at generate:
+```
+
+```json
+{
+  "run_id": 2,
+  "route": "regenerate",
+  "status": "waiting",
+  "current_stage": "generate",
+  "trace": [
+    {"node": "coordinator", "event": "exit", "detail": "route=regenerate stages=generate,property_filter,dock"},
+    {"node": "retrieve", "event": "skip", "detail": "not in route or already done"},
+    {"node": "generate", "event": "enter", "detail": null},
+    {"node": "generate", "event": "reuse", "detail": "reusing prior conditioning"},
+    {"node": "generate", "event": "job_submitted", "detail": "job=gen-job-2 mode=retrieval-conditioned"}
+  ]
+}
+```
+
+Proven by test: `test_regenerate_does_not_call_retrieval` installs an assertion-error spy on `app.orchestration.graph.retrieve` and confirms it is called zero times.
+
+**Disclosures & limitations (honest, not hidden):**
+- **The Coordinator is a deterministic route table**, not an LLM agent. A route
+  table is the right engineering choice for pipeline topology: zero latency,
+  zero cost, 100% predictable re-entry, no prompt injection surface. We disclose
+  this rather than calling it "autonomous reasoning."
+- **Langfuse emission is unverified** in this release. CI runs without
+  Langfuse keys and relies on the structured trace list in `pipeline_runs.state_json`.
+  The integration is code-complete but has not been verified against a live
+  Langfuse host.
+- **Concurrent runs on one project return 409** — only one pipeline run may be
+  active per project at a time.
+- **The existing per-stage UI endpoints** (`POST /generate`, `POST /dock`)
+  remain supported and byte-compatible with V6. The new orchestration endpoints
+  live at `POST /projects/{id}/run` and `GET /projects/{id}/run/{run_id}`.
+
 ## Quick Start
 
 Prerequisites: Docker + Docker Compose.
@@ -297,18 +420,23 @@ backend/
       graphdit.py            # V4 Graph-DiT backend (checkpoint)
       conditioned.py         # V5 seed-graph init
       evaluate.py            # validity/uniqueness/novelty/diversity
+    orchestration/           # V7: LangGraph coordinator + pipeline nodes
+      graph.py               # StateGraph: coordinator→retrieve→generate→filter→dock
+      gates.py               # named property gate constants (QED, SA, Lipinski, PAINS)
+      state.py               # route map, trace helpers, terminal statuses
+      tracing.py             # structured trace list + optional Langfuse mirror
     workers/
       celery_app.py          # Celery (Redis broker/backend)
-      tasks.py               # add / generate_molecules / dock_molecules
-    models/                  # known_molecules, projects, docking_results
-  alembic/versions/          # 001 known_molecules, 002 projects, 003 docking
+      tasks.py               # add / generate_molecules / dock_molecules / resume_pipeline
+    models/                  # known_molecules, projects, docking_results, pipeline_runs
+  alembic/versions/          # 001 molecules, 002 projects, 003 docking, 004 pipeline_runs
   scripts/
     ingest_chembl.py         # one-shot ChEMBL max_phase=4 seed
     fetch_vina.py            # pinned-SHA256 Vina binary provisioning
     dock_sanity.py           # DUD-E EGFR smoke test
     verify_e2e_live.py       # live-stack E2E verification
   bin/                       # vina binary (gitignored, script-managed)
-  tests/                     # 51 tests incl. docking (Vina mocked in CI)
+  tests/                     # 64 tests incl. orchestration (eager Celery)
 frontend/
   app/
     page.tsx                 # landing bench: PDB ID + single seed field
@@ -332,7 +460,7 @@ prompts/                     # version-scoped build prompts (V1–V10)
 | **V4** | Baseline Generation | Diffusion backbone, background jobs, eval metrics |
 | **V5** | Retrieval-Augmented Generation | RetMol-style conditioning |
 | **V6** | Docking & Ranking | AutoDock Vina, composite score, 3D pose viewer |
-| V7 | Multi-Agent Orchestration | LangGraph + Langfuse |
+| **V7** | Multi-Agent Orchestration | LangGraph + Langfuse |
 | V8 | Report & Notebook | LLM rationales, shortlist, exports |
 | V9 | Vision Agent | Literature structure extraction (highest-risk, last) |
 | V10 | Hardening & Safety | Auth, Safety Agent, rate limiting, observability |

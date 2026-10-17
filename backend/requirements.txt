@@ -18,3 +18,5 @@ alembic>=1.14
 torch-molecule>=0.1.7
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch>=2.4
+langgraph==0.2.42
+langfuse==3.2.0

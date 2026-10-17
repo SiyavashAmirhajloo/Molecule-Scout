@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from sqlalchemy import text
 
-from app.api import jobs, molecules, projects
+from app.api import jobs, molecules, orchestration, projects
 from app.config import settings
 from app.db import engine, upgrade_schema
 
@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
     app.include_router(molecules.router, prefix="/molecules", tags=["molecules"])
     app.include_router(projects.router, prefix="/projects", tags=["projects"])
+    app.include_router(orchestration.router, prefix="/projects", tags=["orchestration"])
 
     @app.get("/", include_in_schema=False)
     async def root():

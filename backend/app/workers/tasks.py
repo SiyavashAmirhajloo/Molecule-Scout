@@ -145,6 +145,26 @@ def dock_molecules(
     }
 
 
+@celery.task(name="resume_pipeline", bind=True)
+def resume_pipeline(self, job_result=None, run_id: int | None = None,
+                    job_id: str | None = None) -> dict:
+    """Resume a pipeline run when a background job lands (.link/.link_error).
+
+    Called with the job result as the first arg by celery link. job_result
+    is the REAL payload on success (dict) or an Exception on failure — an
+    Exception has no .get(), hence the explicit isinstance check. job_id is
+    the id of the job that just finished; the resume CAS pins it so a stale
+    or duplicated callback cannot resume a run that has already moved on.
+    """
+    from app.orchestration.graph import resume_run
+
+    if isinstance(job_result, Exception):
+        resume_run(run_id, {"failed": True, "error": str(job_result)}, job_id)
+        return {"run_id": run_id, "status": "failure"}
+    resume_run(run_id, {"failed": False, "result": job_result}, job_id)
+    return {"run_id": run_id, "status": "resumed"}
+
+
 @celery.task(name="generate_molecules", bind=True)
 def generate_molecules(
     self,
