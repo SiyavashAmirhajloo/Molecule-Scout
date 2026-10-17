@@ -43,13 +43,13 @@ ACTIVE_STATUSES = ("pending", "running", "waiting")
 
 def trace(state: dict, node: str, event: str, detail: str | None) -> None:
     """Append a trace event to the run state. Persisted and returned by the API."""
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
     state.setdefault("trace", []).append(
         {
             "node": node,
             "event": event,
-            "at": datetime.now(timezone.utc).isoformat(),
+            "at": datetime.now(UTC).isoformat(),
             "detail": detail,
         }
     )
