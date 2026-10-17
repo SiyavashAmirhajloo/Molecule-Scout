@@ -23,6 +23,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/moleculescout
       REDIS_URL: redis://redis:6379/0
       RECEPTOR_CACHE_DIR: /code/cache/receptors
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
     volumes:
       - receptors:/code/cache/receptors
     depends_on:
@@ -36,6 +39,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/moleculescout
       REDIS_URL: redis://redis:6379/0
       RECEPTOR_CACHE_DIR: /code/cache/receptors
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
     volumes:
       - ./backend/models:/code/models:ro
       - receptors:/code/cache/receptors
