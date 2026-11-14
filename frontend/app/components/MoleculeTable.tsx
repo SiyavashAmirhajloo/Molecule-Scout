@@ -75,9 +75,13 @@ function Pass({ ok }: { ok: boolean }) {
 export default function MoleculeTable({
   rows,
   onSelect,
+  onStar,
+  starred,
 }: {
   rows: MoleculeRow[];
   onSelect?: (dockingId: number) => void;
+  onStar?: (dockingId: number) => void;
+  starred?: Set<number>;
 }) {
   const hasRanks = rows.some((r) => r.rank_score !== undefined);
   const [sortKey, setSortKey] = useState<SortKey>(
@@ -191,6 +195,7 @@ export default function MoleculeTable({
           <thead>
             <tr className="border-b border-lab-line bg-lab-panel text-lab-muted">
               {hasRanks && <th className="py-2.5 pl-3 pr-4 text-lab-amber">#</th>}
+              {onStar && <th className="py-2.5 pr-2" aria-label="Shortlist">★</th>}
               <th className="py-2.5 pr-4">Structure</th>
               <th className="py-2.5 pr-4">Name</th>
               {header("Sim", "similarity")}
@@ -209,7 +214,7 @@ export default function MoleculeTable({
             {visible.length === 0 && (
               <tr>
                 <td
-                  colSpan={hasRanks ? 13 : 11}
+                  colSpan={(hasRanks ? 13 : 11) + (onStar ? 1 : 0)}
                   className="py-10 text-center text-sm text-lab-muted"
                 >
                   No molecules match these filters — relax them.
@@ -241,6 +246,32 @@ export default function MoleculeTable({
                 {hasRanks && (
                   <td className="pl-3 pr-4 py-2.5 font-mono text-lab-muted">
                     {i + 1}
+                  </td>
+                )}
+                {onStar && (
+                  <td className="py-2.5 pr-2">
+                    {row.docking_id !== undefined && (
+                      <button
+                        type="button"
+                        aria-label={
+                          starred?.has(row.docking_id)
+                            ? "Remove from shortlist"
+                            : "Add to shortlist"
+                        }
+                        aria-pressed={starred?.has(row.docking_id) ?? false}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStar(row.docking_id as number);
+                        }}
+                        className={
+                          starred?.has(row.docking_id)
+                            ? "text-lab-amber"
+                            : "text-lab-muted/50 hover:text-lab-amber"
+                        }
+                      >
+                        ★
+                      </button>
+                    )}
                   </td>
                 )}
                 <td className="max-w-[14rem] truncate py-2.5 pr-4 font-mono text-xs">

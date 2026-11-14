@@ -42,6 +42,14 @@ The Coordinator can also re-enter this graph partway through — e.g.
 "regenerate candidates with a tighter QED threshold" re-runs from the
 conditioned-generation step without re-doing literature ingestion.
 
+**Implementation note (V8):** the implemented graph is
+`coordinator → retrieve → generate → safety_screen → property_filter → dock →
+report → done`, with the zero-survivor path routing
+`property_filter → report → done` so a gate rejection produces an explaining
+report rather than a bare empty result. A V7 routing bug that sent
+zero-survivor runs to `done` without a matching edge was found and fixed in V8;
+`test_zero_survivor_routes_property_filter_to_report_not_keyerror` guards it.
+
 ## Retrieval-Augmented Generation, for a Diffusion Model
 
 This is the technical core of the project, and the direct analogue of

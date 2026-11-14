@@ -61,7 +61,49 @@ type DockingDetail = {
   pose_pdbqt: string | null;
 };
 
-type Stage = "retrieve" | "generate" | "dock";
+type Stage = "retrieve" | "generate" | "dock" | "report";
+
+type ReportCandidate = {
+  smiles: string;
+  rank: number;
+  rank_score: number | null;
+  affinity: number | null;
+  qed: number | null;
+  novelty: number | null;
+  rationale: string;
+  rationale_source: string;
+  verification_note: string;
+};
+type ReportPayload = {
+  generated_at: string;
+  model: string;
+  formula: string;
+  formula_version: string;
+  disclaimer: string;
+  summary?: string;
+  terminal_reason?: string;
+  conditioning_summary: { mode?: string; seed_smiles?: string; similarity?: number; reason?: string };
+  candidates: ReportCandidate[];
+};
+type ShortlistItem = {
+  id: number;
+  docking_result_id: number | null;
+  candidate_smiles: string;
+  note: string | null;
+};
+type History = {
+  runs: {
+    id: number;
+    route: string;
+    status: string;
+    current_stage: string;
+    created_at: string | null;
+    candidate_count: number;
+    ranked_count: number;
+  }[];
+  shortlist_count: number;
+  has_history: boolean;
+};
 
 function useJobPoll<T>(): [string | null, string | null, T | null, string | null, (id: string) => void, () => void] {
   const [jobId, setJobId] = useState<string | null>(null);
@@ -113,6 +155,51 @@ export default function ProjectPage() {
   const [poseError, setPoseError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [needsRefresh, setNeedsRefresh] = useState(false);
+  const [report, setReport] = useState<ReportPayload | null>(null);
+  const [shortlist, setShortlist] = useState<ShortlistItem[]>([]);
+  const [history, setHistory] = useState<History | null>(null);
+
+  const loadReportAndShortlist = useCallback(() => {
+    fetch(`${API}/projects/${projectId}/report`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setReport(d?.payload ?? null))
+      .catch(() => {});
+    fetch(`${API}/projects/${projectId}/shortlist`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d: ShortlistItem[]) => setShortlist(d))
+      .catch(() => {});
+    fetch(`${API}/projects/${projectId}/history`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: History | null) => setHistory(d))
+      .catch(() => {});
+  }, [projectId]);
+
+  useEffect(() => {
+    loadReportAndShortlist();
+  }, [loadReportAndShortlist]);
+
+  async function toggleStar(dockingId: number) {
+    const existing = shortlist.find((s) => s.docking_result_id === dockingId);
+    try {
+      if (existing) {
+        const r = await fetch(
+          `${API}/projects/${projectId}/shortlist/${existing.id}`,
+          { method: "DELETE" },
+        );
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      } else {
+        const r = await fetch(`${API}/projects/${projectId}/shortlist`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ docking_result_id: dockingId }),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      }
+      loadReportAndShortlist();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Shortlist update failed");
+    }
+  }
 
   const [genJobId, genStatus, genResult, genError, startGen, resetGen] =
     useJobPoll<GenerationResult>();
@@ -240,6 +327,7 @@ export default function ProjectPage() {
       done: genResult !== null && genResult.candidates.length > 0,
     },
     { key: "dock", label: "Dock", done: dockRanked !== null },
+    { key: "report", label: "Report", done: report !== null },
   ];
 
   return (
@@ -270,8 +358,7 @@ export default function ProjectPage() {
           <li key={s.key} className="flex flex-1 items-center last:flex-none">
             <button
               onClick={() => setStage(s.key)}
-              disabled={s.key === "dock" && !genResult}
-              className={`flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
+              disabled={s.key === "dock" && !genResult}              className={`flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
                 stage === s.key
                   ? "bg-lab-surface text-lab-text"
                   : "text-lab-muted hover:text-lab-text disabled:cursor-not-allowed disabled:opacity-40"
@@ -419,7 +506,18 @@ export default function ProjectPage() {
             )}
             {dockError && <p className="text-sm text-lab-danger">{dockError}</p>}
             {dockRanked ? (
-              <MoleculeTable rows={dockRanked} onSelect={openPose} />
+              <MoleculeTable
+                rows={dockRanked}
+                onSelect={openPose}
+                onStar={toggleStar}
+                starred={
+                  new Set(
+                    shortlist
+                      .map((s) => s.docking_result_id)
+                      .filter((x): x is number => x !== null),
+                  )
+                }
+              />
             ) : (
               <p className="py-8 text-center text-sm text-lab-muted">
                 {genResult
@@ -465,6 +563,132 @@ export default function ProjectPage() {
             )}
           </aside>
         </div>
+      )}
+
+      {/* Report stage (V8) */}
+      {stage === "report" && (
+        <section className="panel mt-5" aria-live="polite">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className="panel-title">Report</h2>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={`${API}/projects/${projectId}/report/export.sdf`}
+                className="btn-secondary text-xs"
+              >
+                Export SDF
+              </a>
+              <a
+                href={`${API}/projects/${projectId}/report/export.pdf`}
+                className="btn-secondary text-xs"
+              >
+                Export PDF
+              </a>
+            </div>
+          </div>
+
+          {!report ? (
+            <p className="py-8 text-center text-sm text-lab-muted">
+              No report yet — a completed pipeline run (Dock) writes one.
+            </p>
+          ) : (
+            <>
+              <p className="rounded-md border border-lab-line/60 bg-lab-surface px-3 py-2 text-xs text-lab-muted">
+                {report.disclaimer}
+              </p>
+              <p className="mt-2 font-mono text-xs text-lab-muted">
+                model {report.model} · {report.formula_version} ·{" "}
+                {report.candidates.length} candidate
+                {report.candidates.length === 1 ? "" : "s"} · generated{" "}
+                {new Date(report.generated_at).toLocaleString()}
+              </p>
+              {report.terminal_reason && (
+                <p className="mt-3 rounded-md bg-lab-surface px-3 py-2 text-sm text-lab-muted">
+                  {report.summary ?? "No candidates survived property filtering."}
+                </p>
+              )}
+              <ul className="mt-4 space-y-3">
+                {report.candidates.map((c) => (
+                  <li key={c.smiles} className="rounded-lg border border-lab-line bg-lab-panel p-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-mono text-sm text-lab-amber">
+                        #{c.rank} · score {c.rank_score?.toFixed(3) ?? "—"}
+                      </span>
+                      <span className="chip">
+                        {c.rationale_source === "template-fallback"
+                          ? "template fallback (no LLM key)"
+                          : c.rationale_source}
+                      </span>
+                    </div>
+                    <p className="mt-1 break-all font-mono text-xs text-lab-muted">
+                      {c.smiles}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed">{c.rationale}</p>
+                    <p className="mt-2 text-xs text-lab-muted">
+                      affinity {c.affinity?.toFixed(2) ?? "—"} · QED{" "}
+                      {c.qed?.toFixed(3) ?? "—"} · novelty{" "}
+                      {c.novelty?.toFixed(2) ?? "—"}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {/* Shortlist */}
+          <div className="mt-6 border-t border-lab-line pt-4">
+            <h3 className="text-sm font-semibold">
+              Shortlist{" "}
+              <span className="font-mono text-xs text-lab-muted">
+                {shortlist.length}
+              </span>
+            </h3>
+            {shortlist.length === 0 ? (
+              <p className="mt-2 text-sm text-lab-muted">
+                Star ranked rows on the Dock tab to build a shortlist.
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-1">
+                {shortlist.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex items-center justify-between gap-3 rounded border border-lab-line/60 bg-lab-surface px-3 py-2"
+                  >
+                    <span className="truncate font-mono text-xs">
+                      {s.candidate_smiles}
+                    </span>
+                    {s.docking_result_id !== null && (
+                      <button
+                        type="button"
+                        onClick={() => toggleStar(s.docking_result_id as number)}
+                        className="text-xs text-lab-muted hover:text-lab-danger"
+                      >
+                        remove
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* History (Memory Agent read model) */}
+          {history && history.has_history && (
+            <div className="mt-6 border-t border-lab-line pt-4">
+              <h3 className="text-sm font-semibold">Project history</h3>
+              <ul className="mt-2 space-y-1 font-mono text-xs text-lab-muted">
+                {history.runs.map((r) => (
+                  <li key={r.id}>
+                    run {r.id} · {r.route} · {r.status} · {r.candidate_count}{" "}
+                    candidates / {r.ranked_count} ranked
+                    {r.created_at
+                      ? ` · ${new Date(r.created_at).toLocaleString()}`
+                      : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
