@@ -20,3 +20,4 @@ torch-molecule>=0.1.7
 torch>=2.4
 langgraph==0.2.42
 langfuse==3.2.0
+reportlab==4.2.5

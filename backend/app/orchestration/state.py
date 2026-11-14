@@ -25,16 +25,18 @@ State keys:
   property_passed    list[str], property_rejected: list[dict], property_done: bool
   dock_job_id, dock_status, dock_results, dock_formula,
     dock_formula_version, receptor_info, dock_done: bool
+  report            dict — assembled report payload (V8 Report Agent)
+  report_done       bool
   trace             list[dict]
   error             str | None
   stop_after        str | None — per-stage endpoint early-exit signal
 """
 
 REQUIRED_STAGES: dict[str, list[str]] = {
-    "new_project": ["retrieve", "generate", "property_filter", "dock"],
-    "full_rerun": ["retrieve", "generate", "property_filter", "dock"],
-    "regenerate": ["generate", "property_filter", "dock"],
-    "redock": ["property_filter", "dock"],
+    "new_project": ["retrieve", "generate", "property_filter", "dock", "report"],
+    "full_rerun": ["retrieve", "generate", "property_filter", "dock", "report"],
+    "regenerate": ["generate", "property_filter", "dock", "report"],
+    "redock": ["property_filter", "dock", "report"],
 }
 
 TERMINAL_STATUSES = ("success", "failure")

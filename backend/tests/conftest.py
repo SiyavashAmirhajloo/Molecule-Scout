@@ -10,6 +10,8 @@ from app.models.docking import DockingResult  # noqa: F401 — ensure table is r
 from app.models.molecule import Base, KnownMolecule
 from app.models.pipeline import PipelineRun  # noqa: F401 — ensure table is registered
 from app.models.project import Project  # noqa: F401 — ensure table is registered
+from app.models.report import Report  # noqa: F401 — ensure table is registered
+from app.models.shortlist import ShortlistItem  # noqa: F401 — ensure table is registered
 
 SEED_ROWS = [
     ("CC(=O)Oc1ccccc1C(=O)O", "CHEMBL25", "ASPIRIN"),

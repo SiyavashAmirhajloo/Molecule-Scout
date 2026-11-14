@@ -90,6 +90,7 @@ def test_route_table_covers_all_request_types():
         "generate",
         "property_filter",
         "dock",
+        "report",
     ]
     assert "retrieve" not in REQUIRED_STAGES["regenerate"]
     assert "retrieve" not in REQUIRED_STAGES["redock"]
@@ -101,7 +102,7 @@ def test_coordinator_node_sets_stages():
 
     out = coordinator({"request_type": "regenerate", "project_id": 1})
     assert out["route"] == "regenerate"
-    assert out["stages"] == ["generate", "property_filter", "dock"]
+    assert out["stages"] == ["generate", "property_filter", "dock", "report"]
     assert out["trace"][-1]["node"] == "coordinator"
 
 

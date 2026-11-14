@@ -66,14 +66,14 @@ Docking sanity check (local venv, needs network + `backend/bin/vina`):
 # DUD-E EGFR, ~25 min: ROC AUC + bootstrap CI + EF@1/5/10 vs achievable max
 ```
 
-## Status — V7 Multi-Agent Orchestration via LangGraph ✓
+## Status — V8 Report Agent & Research Notebook ✓
 
 | Check | Status |
 |---|---|
 | `docker compose up --build` boots `api` + `worker` + `db` (pgvector) + `redis` + `frontend` | ✓ |
 | `GET /health` reports `{"db": "ok", "redis": "ok"}` | ✓ |
 | `POST /jobs/test` → `GET /jobs/{id}` round-trips via Celery | ✓ |
-| `pytest` — 64 tests, eager Celery, no services needed | ✓ |
+| `pytest` — 78 tests, eager Celery, no services needed | ✓ |
 | `ruff check` clean, `tsc --noEmit` + `next build` clean | ✓ |
 | CI runs backend (`ruff` + `pytest`) and frontend (`tsc` + `build`) on push/PR | ✓ |
 | Live E2E: project → generate → dock → ranked table → 3D pose | ✓ |
@@ -83,8 +83,11 @@ Docking sanity check (local venv, needs network + `backend/bin/vina`):
 | Property Agent gate before docking (PAINS-free, Lipinski ≤1, QED ≥0.25, SA ≤6.0) | ✓ |
 | Re-entry (`regenerate`, `redock`) skips retrieval without re-running | ✓ |
 | Event-driven resume via Celery `.link`/`.link_error` + atomic CAS double-resume guard | ✓ |
+| Report Agent: grounded per-candidate rationale, provider-agnostic LLM with template fallback | ✓ |
+| Shortlist starring, SDF + PDF export | ✓ |
+| Project history across sessions (Memory Agent read model) | ✓ |
 
-Next: **V8 — Report Agent & Research Notebook** (LLM rationales, shortlists, PDF/SDF export).
+Next: **V9 — Vision Agent** (literature structure extraction).
 
 ## Knowledge Base (V1) ✓
 
@@ -369,6 +372,58 @@ Proven by test: `test_regenerate_does_not_call_retrieval` installs an assertion-
   remain supported and byte-compatible with V6. The new orchestration endpoints
   live at `POST /projects/{id}/run` and `GET /projects/{id}/run/{run_id}`.
 
+## Report Agent & Research Notebook (V8) ✓
+
+Ranked numbers become something a researcher can read, and the project remembers
+itself across sessions.
+
+- **Report Agent** — one LLM call per candidate (capped at `MAX_REPORT_CANDIDATES
+  = 20`, top-ranked), grounded **only** in structured facts already in the run:
+  affinity, rank score, QED, novelty, conditioning summary. It is a graph node
+  (`report`) between `dock` and `done`.
+- **Provider-agnostic LLM layer** (`backend/app/llm.py`) — one OpenAI-compatible
+  `httpx` client covers Gemini, Groq, OpenRouter and Ollama; no provider SDKs.
+  Configure with `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL`.
+- **Honest no-key default** — with no key configured the product uses a
+  deterministic **template provider** built from the real numbers, and every card
+  says `template-fallback (no LLM key)`. Nothing is fabricated; dev, CI and
+  offline demos still produce a useful report.
+- **Responsible-use framing is enforced in code, not trusted from the model** —
+  every rationale must contain *"requires human/wet-lab verification"*; if a
+  model omits it, the sentence is appended before storage. The report carries
+  the "not validated drug candidates" disclaimer and the rank formula + version.
+- **Zero-survivor runs get an explaining report** — `terminal_reason:
+  no_candidates_passed_property_filter` with a plain summary, never a bare empty list.
+- **Shortlist** — star ranked rows; persisted with a unique
+  `(project_id, candidate_smiles)` constraint so starring twice is a no-op.
+- **Export** — `export.sdf` (RDKit `SDWriter`, scores + rationale as SDF
+  properties) and `export.pdf` (reportlab: formula, candidate table, RDKit 2D
+  depictions, rationales, disclaimer). Both contain only our computed data and
+  citations — no verbatim source text.
+- **Memory Agent read model** — `GET /projects/{id}/history` aggregates
+  `pipeline_runs`, `reports` and `shortlist_items` (no duplicate store), so
+  returning to a project shows its prior runs and saved shortlist.
+
+```bash
+curl localhost:8000/projects/1/report                 # latest assembled report
+curl -OJ localhost:8000/projects/1/report/export.sdf  # structures + scores
+curl -OJ localhost:8000/projects/1/report/export.pdf  # full assembled report
+curl localhost:8000/projects/1/history                # prior runs, shortlist count
+```
+
+**Named limits (so a stuck report points at a documented constant):**
+`LLM_TIMEOUT_S = 25`, `LLM_MAX_WORKERS = 4`, `LLM_MAX_ATTEMPTS = 2`,
+`MAX_REPORT_CANDIDATES = 20`.
+
+**Disclosures:**
+- Rationales are generated from structured upstream numbers; with no LLM key the
+  deterministic template is used and labelled on every card.
+- A per-candidate LLM failure (timeout, non-200, empty body) falls back to the
+  template for that candidate only — one bad call never fails the report.
+- **Honest history:** a V7 routing bug (zero-survivor runs could not reach
+  `done`) was found during V8 planning and fixed in V8; the regression test is
+  `test_zero_survivor_routes_property_filter_to_report_not_keyerror`.
+
 ## Quick Start
 
 Prerequisites: Docker + Docker Compose.
@@ -381,7 +436,11 @@ docker compose exec api python scripts/ingest_chembl.py   # first time only
 - **Frontend:** http://localhost:3000 (bench → project pipeline → pose)
 - **API:** http://localhost:8000/docs — `GET /health`, `POST /projects`,
   `GET /projects/{id}`, `POST /projects/{id}/generate`, `POST /projects/{id}/dock`,
-  `GET /projects/{id}/docking`, `GET /projects/{id}/docking/{resultId}`, `GET /jobs/{id}`
+  `GET /projects/{id}/docking`, `GET /projects/{id}/docking/{resultId}`,
+  `POST /projects/{id}/run`, `GET /projects/{id}/run/{run_id}`,
+  `GET /projects/{id}/report`, `GET /projects/{id}/report/export.{sdf,pdf}`,
+  `GET /projects/{id}/history`, `GET|POST /projects/{id}/shortlist`,
+  `DELETE /projects/{id}/shortlist/{itemId}`, `GET /jobs/{id}`
 - **Postgres (pgvector):** `localhost:5432` (`postgres`/`postgres`/`moleculescout`)
 - **Redis:** `localhost:6379`
 
@@ -421,22 +480,28 @@ backend/
       conditioned.py         # V5 seed-graph init
       evaluate.py            # validity/uniqueness/novelty/diversity
     orchestration/           # V7: LangGraph coordinator + pipeline nodes
-      graph.py               # StateGraph: coordinator→retrieve→generate→filter→dock
+      graph.py               # StateGraph: coordinator→retrieve→generate→filter→dock→report
       gates.py               # named property gate constants (QED, SA, Lipinski, PAINS)
       state.py               # route map, trace helpers, terminal statuses
       tracing.py             # structured trace list + optional Langfuse mirror
+    report/                  # V8: Report Agent, exports, memory read model
+      agent.py               # per-candidate rationale + MAX_REPORT_CANDIDATES cap
+      prompts.py             # grounded prompt + enforced verification sentence
+      sdf.py, pdf.py         # RDKit SDWriter / reportlab exports
+      memory.py              # project history read model
+    llm.py                   # provider-agnostic OpenAI-compatible client + template
     workers/
       celery_app.py          # Celery (Redis broker/backend)
       tasks.py               # add / generate_molecules / dock_molecules / resume_pipeline
-    models/                  # known_molecules, projects, docking_results, pipeline_runs
-  alembic/versions/          # 001 molecules, 002 projects, 003 docking, 004 pipeline_runs
+    models/                  # known_molecules, projects, docking_results, pipeline_runs, reports, shortlist_items
+  alembic/versions/          # 001 molecules, 002 projects, 003 docking, 004 pipeline_runs, 005 reports+shortlist
   scripts/
     ingest_chembl.py         # one-shot ChEMBL max_phase=4 seed
     fetch_vina.py            # pinned-SHA256 Vina binary provisioning
     dock_sanity.py           # DUD-E EGFR smoke test
     verify_e2e_live.py       # live-stack E2E verification
   bin/                       # vina binary (gitignored, script-managed)
-  tests/                     # 64 tests incl. orchestration (eager Celery)
+  tests/                     # 78 tests incl. orchestration + report (eager Celery)
 frontend/
   app/
     page.tsx                 # landing bench: PDB ID + single seed field
@@ -461,7 +526,7 @@ prompts/                     # version-scoped build prompts (V1–V10)
 | **V5** | Retrieval-Augmented Generation | RetMol-style conditioning |
 | **V6** | Docking & Ranking | AutoDock Vina, composite score, 3D pose viewer |
 | **V7** | Multi-Agent Orchestration | LangGraph + Langfuse |
-| V8 | Report & Notebook | LLM rationales, shortlist, exports |
+| **V8** | Report & Notebook | LLM rationales, shortlist, exports |
 | V9 | Vision Agent | Literature structure extraction (highest-risk, last) |
 | V10 | Hardening & Safety | Auth, Safety Agent, rate limiting, observability |
 

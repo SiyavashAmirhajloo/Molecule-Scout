@@ -445,6 +445,77 @@ def dock_node(state: dict) -> dict:
     return state
 
 
+def report_node(state: dict) -> dict:
+    """V8 Report Agent: assemble a grounded, per-candidate rationale report.
+
+    Idempotent per run: the (project_id, pipeline_run_id) unique constraint
+    makes a concurrent duplicate insert fail loud rather than duplicate. Runs
+    after docking, and on the zero-survivor path so that outcome is explained
+    rather than looking like a missing report.
+    """
+    if "report" not in state["stages"] or state.get("report_done"):
+        trace(state, "report", "skip", "not in route or already done")
+        return state
+    state["current_stage"] = "report"
+    trace(state, "report", "enter", None)
+    project_id = state["project_id"]
+    run_id = state.get("run_id")
+    from app.report.agent import build_report
+
+    payload = build_report(project_id, run_id, state)
+    state["report"] = payload
+    state["report_done"] = True
+    if run_id:
+        _persist_report(project_id, run_id, payload)
+    trace(
+        state,
+        "report",
+        "exit",
+        f"{len(payload.get('candidates', []))} rationales, model={payload.get('model')}",
+    )
+    return state
+
+
+def _persist_report(project_id: int, run_id: int, payload: dict) -> None:
+    """Insert the report row. The unique constraint makes a duplicate a loud
+    IntegrityError instead of a silent second row; an existing row (idempotent
+    re-entry) is left untouched."""
+    import json as _json
+
+    from sqlalchemy import insert, select
+    from sqlalchemy.exc import IntegrityError
+
+    from app import db
+    from app.models.report import Report
+
+    async def _work() -> None:
+        async with db.SessionLocal() as s:
+            exists = (
+                await s.execute(
+                    select(Report.id).where(
+                        Report.project_id == project_id,
+                        Report.pipeline_run_id == run_id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if exists:
+                return
+            try:
+                await s.execute(
+                    insert(Report).values(
+                        project_id=project_id,
+                        pipeline_run_id=run_id,
+                        payload_json=_json.dumps(payload),
+                        model=str(payload.get("model", "template-fallback"))[:64],
+                    )
+                )
+                await s.commit()
+            except IntegrityError:
+                await s.rollback()
+
+    _run_async(_work())
+
+
 def done_node(state: dict) -> dict:
     state["current_stage"] = "done"
     if state.get("error"):
@@ -461,11 +532,12 @@ def done_node(state: dict) -> dict:
 
 
 def _after_property_filter(state: dict) -> str:
-    """Zero survivors still routes through done: the gate's outcome is the
-    terminal state, so the trace gets a proper done event rather than a
-    silent drop to END. Docking is skipped — no dock-stage error for an
-    outcome the gate decided."""
-    return "dock" if state.get("property_passed") else "done"
+    """Zero survivors routes to the report node, not straight to done: the
+    gate's outcome is explained in the report. Docking is skipped — no
+    dock-stage error for an outcome the gate decided.
+    (V7 had this returning "done" with no matching key in the edge map, which
+    raised KeyError; fixed in V8.)"""
+    return "dock" if state.get("property_passed") else "report"
 
 
 def _after_generate(state: dict) -> str:
@@ -479,7 +551,11 @@ def _after_generate(state: dict) -> str:
 
 
 def _after_dock(state: dict) -> str:
-    return "done" if state.get("dock_done") else END
+    return "report" if state.get("dock_done") else END
+
+
+def _after_report(state: dict) -> str:
+    return "done" if state.get("report_done") else END
 
 
 def build_graph():
@@ -490,6 +566,7 @@ def build_graph():
     g.add_node("safety_screen", safety_screen)
     g.add_node("property_filter", property_filter_node)
     g.add_node("dock", dock_node)
+    g.add_node("report", report_node)
     g.add_node("done", done_node)
     g.add_edge(START, "coordinator")
     g.add_edge("coordinator", "retrieve")
@@ -499,9 +576,12 @@ def build_graph():
     )
     g.add_edge("safety_screen", "property_filter")
     g.add_conditional_edges(
-        "property_filter", _after_property_filter, {"dock": "dock", END: END}
+        "property_filter",
+        _after_property_filter,
+        {"dock": "dock", "report": "report"},
     )
-    g.add_conditional_edges("dock", _after_dock, {"done": "done", END: END})
+    g.add_conditional_edges("dock", _after_dock, {"report": "report", END: END})
+    g.add_conditional_edges("report", _after_report, {"done": "done", END: END})
     g.add_edge("done", END)
     return g.compile()
 
